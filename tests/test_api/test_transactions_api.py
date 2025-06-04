@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 # Test data
-VALID_TRANSACTION_DATA = {"envelope_id": 1, "amount": -25.0, "description": "Coffee"}
+VALID_TRANSACTION_DATA = {"envelope_id": 1, "amount": 25.0, "description": "Coffee", "date": "YYYY-MM-DD", "type": "expense"} # Ensure date is a valid string like "2023-10-26"
 INVALID_TRANSACTION_DATA = {"envelope_id": 1, "description": "Coffee"} # Missing amount
 EMPTY_TRANSACTION_DATA = {}
 
