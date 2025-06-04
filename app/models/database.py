@@ -1,5 +1,5 @@
 import duckdb
-
+from datetime import date
 
 class Database:
     """
@@ -38,6 +38,7 @@ class Database:
                     description VARCHAR
                 );
             """)
+            self.conn.execute("CREATE SEQUENCE IF NOT EXISTS envelopes_id_seq;")
             self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS transactions (
                     id INTEGER PRIMARY KEY,
@@ -49,6 +50,7 @@ class Database:
                     FOREIGN KEY (envelope_id) REFERENCES envelopes(id)
                 );
             """)
+            self.conn.execute("CREATE SEQUENCE IF NOT EXISTS transactions_id_seq;")
             self.conn.commit()
             print("Database tables checked/created successfully.")
         except Exception as e:
@@ -66,14 +68,16 @@ class Database:
         """Inserts a new envelope into the database."""
         try:
             result = self.conn.execute(
-                "INSERT INTO envelopes (category, budgeted_amount, starting_balance, description) VALUES (?, ?, ?, ?) RETURNING id;",
+                "INSERT INTO envelopes (id, category, budgeted_amount, starting_balance, description) VALUES (nextval('envelopes_id_seq'), ?, ?, ?, ?) RETURNING id;",
                 (category, budgeted_amount, starting_balance, description)
             ).fetchone()
             self.conn.commit()
             return result[0] if result else None
         except duckdb.ConstraintException as e:
-            if "UNIQUE constraint failed: envelopes.category" in str(e):
+            error_str = str(e)
+            if "violates unique constraint" in error_str.lower() and f"category: {category}" in error_str: # More robust check
                 raise ValueError(f"Envelope with category '{category}' already exists.")
+            # Re-raise other constraint exceptions that are not unique violations on category
             raise
         except Exception as e:
             print(f"Error inserting envelope: {e}")
@@ -185,14 +189,15 @@ class Database:
         """Inserts a new transaction into the database."""
         try:
             result = self.conn.execute(
-                "INSERT INTO transactions (envelope_id, amount, description, date, type) VALUES (?, ?, ?, ?, ?) RETURNING id;",
+                "INSERT INTO transactions (id, envelope_id, amount, description, date, type) VALUES (nextval('transactions_id_seq'), ?, ?, ?, ?, ?) RETURNING id;",
                 (envelope_id, amount, description, date, type)
             ).fetchone()
             self.conn.commit()
             return result[0] if result else None
         except duckdb.ConstraintException as e:
-            if "FOREIGN KEY constraint failed" in str(e):
+            if "violates foreign key constraint" in str(e).lower(): # More robust check
                 raise ValueError(f"Envelope with ID {envelope_id} does not exist.")
+            # Re-raise other constraint exceptions that are not FK violations
             raise
         except Exception as e:
             print(f"Error inserting transaction: {e}")
@@ -211,7 +216,7 @@ class Database:
                     "envelope_id": result[1],
                     "amount": result[2],
                     "description": result[3],
-                    "date": result[4].isoformat() if isinstance(result[4], duckdb.DuckDBPyConnection.Date) else result[4],
+                    "date": result[4].isoformat() if isinstance(result[4], date) else result[4],
                     "type": result[5]
                 }
             return None
@@ -231,7 +236,7 @@ class Database:
                 "envelope_id": r[1],
                 "amount": r[2],
                 "description": r[3],
-                "date": r[4].isoformat() if isinstance(r[4], duckdb.DuckDBPyConnection.Date) else r[4],
+                "date": r[4].isoformat() if isinstance(r[4], date) else r[4],
                 "type": r[5]
             } for r in results]
         except Exception as e:
@@ -249,7 +254,7 @@ class Database:
                 "envelope_id": r[1],
                 "amount": r[2],
                 "description": r[3],
-                "date": r[4].isoformat() if isinstance(r[4], duckdb.DuckDBPyConnection.Date) else r[4],
+                "date": r[4].isoformat() if isinstance(r[4], date) else r[4],
                 "type": r[5]
             } for r in results]
         except Exception as e:
