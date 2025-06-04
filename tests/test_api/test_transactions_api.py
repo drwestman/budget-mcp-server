@@ -158,7 +158,7 @@ def test_get_transaction_internal_server_error(app, client, mock_transaction_ser
     mock_transaction_service.get_transaction.assert_called_once_with(transaction_id) # Changed get_transaction_by_id to get_transaction
 
 # --- PUT /transactions/<transaction_id> ---
-UPDATED_TRANSACTION_DATA = {"envelope_id": 1, "amount": -30.0, "description": "Large Coffee"}
+UPDATED_TRANSACTION_DATA = {"envelope_id": 1, "amount": 30.0, "description": "Large Coffee"}
 # Let's make this data truly invalid for the service's update validation rules
 INVALID_UPDATE_DATA = {"amount": "not_a_number"}
 
