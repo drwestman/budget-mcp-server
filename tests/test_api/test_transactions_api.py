@@ -59,7 +59,13 @@ def test_create_transaction_internal_server_error(app, client, mock_transaction_
     response = client.post('/transactions/', json=VALID_TRANSACTION_DATA, headers=headers)
     assert response.status_code == 500
     assert 'message' in response.json # Changed 'error' to 'message'
-    mock_transaction_service.create_transaction.assert_called_once()
+    mock_transaction_service.create_transaction.assert_called_once_with(
+        VALID_TRANSACTION_DATA['envelope_id'],
+        VALID_TRANSACTION_DATA['amount'],
+        VALID_TRANSACTION_DATA['description'],
+        VALID_TRANSACTION_DATA.get('date'), # Or specific expected value if VALID_TRANSACTION_DATA is updated
+        VALID_TRANSACTION_DATA.get('type')  # Or specific expected value
+    )
 
 # --- GET /transactions/ ---
 def test_get_all_transactions_success(app, client, mock_transaction_service):
