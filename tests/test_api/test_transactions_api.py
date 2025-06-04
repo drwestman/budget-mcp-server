@@ -228,7 +228,14 @@ def test_update_transaction_internal_server_error(app, client, mock_transaction_
     response = client.put(f'/transactions/{transaction_id}', json=UPDATED_TRANSACTION_DATA, headers=headers)
     assert response.status_code == 500
     assert 'message' in response.json # Changed 'error' to 'message'
-    mock_transaction_service.update_transaction.assert_called_once()
+    mock_transaction_service.update_transaction.assert_called_once_with(
+        transaction_id, # which is 1
+        envelope_id=UPDATED_TRANSACTION_DATA.get('envelope_id'),
+        amount=UPDATED_TRANSACTION_DATA.get('amount'),
+        description=UPDATED_TRANSACTION_DATA.get('description'),
+        date=UPDATED_TRANSACTION_DATA.get('date'),
+        type=UPDATED_TRANSACTION_DATA.get('type')
+    )
 
 # --- DELETE /transactions/<transaction_id> ---
 def test_delete_transaction_success(app, client, mock_transaction_service):
