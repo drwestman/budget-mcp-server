@@ -89,8 +89,9 @@ def update_transaction_route(transaction_id):
 def delete_transaction_route(transaction_id):
     """Endpoint to delete a transaction."""
     try:
-        result = transaction_service.delete_transaction(transaction_id)
-        return jsonify(result), 200
+        transaction_service.delete_transaction(transaction_id)
+        # If service call is successful, return a success message
+        return jsonify({"message": "Transaction deleted successfully"}), 200
     except ValueError as e:
         return jsonify({"message": str(e)}), 404
     except Exception as e:
