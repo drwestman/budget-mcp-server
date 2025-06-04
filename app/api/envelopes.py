@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 
 envelopes_bp = Blueprint('envelopes', __name__)
 
@@ -30,7 +30,8 @@ def create_envelope_route():
     except ValueError as e:
         return jsonify({"message": str(e)}), 400
     except Exception as e:
-        return jsonify({"message": f"Internal server error: {e}"}), 500
+        current_app.logger.error(f"Internal server error in {request.endpoint}: {e}", exc_info=True)
+        return jsonify({"message": "Internal server error"}), 500
 
 
 @envelopes_bp.route('/', methods=['GET'])
@@ -40,7 +41,8 @@ def get_all_envelopes_route():
         envelopes = envelope_service.get_all_envelopes()
         return jsonify(envelopes), 200
     except Exception as e:
-        return jsonify({"message": f"Internal server error: {e}"}), 500
+        current_app.logger.error(f"Internal server error in {request.endpoint}: {e}", exc_info=True)
+        return jsonify({"message": "Internal server error"}), 500
 
 
 @envelopes_bp.route('/<int:envelope_id>', methods=['GET'])
@@ -52,7 +54,8 @@ def get_envelope_route(envelope_id):
             return jsonify({"message": "Envelope not found."}), 404
         return jsonify(envelope), 200
     except Exception as e:
-        return jsonify({"message": f"Internal server error: {e}"}), 500
+        current_app.logger.error(f"Internal server error in {request.endpoint}: {e}", exc_info=True)
+        return jsonify({"message": "Internal server error"}), 500
 
 
 @envelopes_bp.route('/<int:envelope_id>', methods=['PUT'])
@@ -74,7 +77,8 @@ def update_envelope_route(envelope_id):
     except ValueError as e:
         return jsonify({"message": str(e)}), 400
     except Exception as e:
-        return jsonify({"message": f"Internal server error: {e}"}), 500
+        current_app.logger.error(f"Internal server error in {request.endpoint}: {e}", exc_info=True)
+        return jsonify({"message": "Internal server error"}), 500
 
 
 @envelopes_bp.route('/<int:envelope_id>', methods=['DELETE'])
@@ -86,4 +90,5 @@ def delete_envelope_route(envelope_id):
     except ValueError as e:
         return jsonify({"message": str(e)}), 404
     except Exception as e:
-        return jsonify({"message": f"Internal server error: {e}"}), 500
+        current_app.logger.error(f"Internal server error in {request.endpoint}: {e}", exc_info=True)
+        return jsonify({"message": "Internal server error"}), 500

@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 
 transactions_bp = Blueprint('transactions', __name__)
 
@@ -31,7 +31,8 @@ def create_transaction_route():
     except ValueError as e:
         return jsonify({"message": str(e)}), 400
     except Exception as e:
-        return jsonify({"message": f"Internal server error: {e}"}), 500
+        current_app.logger.error(f"Internal server error in {request.endpoint}: {e}", exc_info=True)
+        return jsonify({"message": "Internal server error"}), 500
 
 
 @transactions_bp.route('/', methods=['GET'])
@@ -47,7 +48,8 @@ def get_all_transactions_route():
     except ValueError as e:
         return jsonify({"message": str(e)}), 400
     except Exception as e:
-        return jsonify({"message": f"Internal server error: {e}"}), 500
+        current_app.logger.error(f"Internal server error in {request.endpoint}: {e}", exc_info=True)
+        return jsonify({"message": "Internal server error"}), 500
 
 
 @transactions_bp.route('/<int:transaction_id>', methods=['GET'])
@@ -59,7 +61,8 @@ def get_transaction_route(transaction_id):
             return jsonify({"message": "Transaction not found."}), 404
         return jsonify(transaction), 200
     except Exception as e:
-        return jsonify({"message": f"Internal server error: {e}"}), 500
+        current_app.logger.error(f"Internal server error in {request.endpoint}: {e}", exc_info=True)
+        return jsonify({"message": "Internal server error"}), 500
 
 
 @transactions_bp.route('/<int:transaction_id>', methods=['PUT'])
@@ -82,16 +85,19 @@ def update_transaction_route(transaction_id):
     except ValueError as e:
         return jsonify({"message": str(e)}), 400
     except Exception as e:
-        return jsonify({"message": f"Internal server error: {e}"}), 500
+        current_app.logger.error(f"Internal server error in {request.endpoint}: {e}", exc_info=True)
+        return jsonify({"message": "Internal server error"}), 500
 
 
 @transactions_bp.route('/<int:transaction_id>', methods=['DELETE'])
 def delete_transaction_route(transaction_id):
     """Endpoint to delete a transaction."""
     try:
-        result = transaction_service.delete_transaction(transaction_id)
-        return jsonify(result), 200
+        transaction_service.delete_transaction(transaction_id)
+        # If service call is successful, return a success message
+        return jsonify({"message": "Transaction deleted successfully"}), 200
     except ValueError as e:
         return jsonify({"message": str(e)}), 404
     except Exception as e:
-        return jsonify({"message": f"Internal server error: {e}"}), 500
+        current_app.logger.error(f"Internal server error in {request.endpoint}: {e}", exc_info=True)
+        return jsonify({"message": "Internal server error"}), 500
