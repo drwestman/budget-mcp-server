@@ -205,7 +205,14 @@ def test_update_transaction_not_found(app, client, mock_transaction_service):
     response = client.put(f'/transactions/{transaction_id}', json=UPDATED_TRANSACTION_DATA, headers=headers)
     assert response.status_code == 400 # Changed 404 to 400, route converts ValueError to 400
     assert 'message' in response.json # Changed 'error' to 'message'
-    mock_transaction_service.update_transaction.assert_called_once()
+    mock_transaction_service.update_transaction.assert_called_once_with(
+        transaction_id, # which is 99
+        envelope_id=UPDATED_TRANSACTION_DATA.get('envelope_id'),
+        amount=UPDATED_TRANSACTION_DATA.get('amount'),
+        description=UPDATED_TRANSACTION_DATA.get('description'),
+        date=UPDATED_TRANSACTION_DATA.get('date'),
+        type=UPDATED_TRANSACTION_DATA.get('type')
+    )
 
 def test_update_transaction_internal_server_error(app, client, mock_transaction_service):
     api_key = app.config['API_KEY']
