@@ -25,8 +25,8 @@ def test_create_transaction_success(app, client, mock_transaction_service):
         VALID_TRANSACTION_DATA['envelope_id'],
         VALID_TRANSACTION_DATA['amount'],
         VALID_TRANSACTION_DATA['description'],
-        None,  # date
-        None   # type
+        VALID_TRANSACTION_DATA['date'],  # 'YYYY-MM-DD'
+        VALID_TRANSACTION_DATA['type']   # 'expense'
     )
 
 def test_create_transaction_bad_request_missing_data(app, client, mock_transaction_service):

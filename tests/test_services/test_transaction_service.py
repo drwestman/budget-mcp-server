@@ -277,6 +277,7 @@ def test_update_transaction_db_update_fails_returns_false(transaction_service, m
         "envelope_id": None, "amount": update_data.get("amount"), "description": None,
         "date": None, "type": None
     }
+    expected_message = f"Transaction with ID {transaction_id} not found or no valid fields to update."
     assert expected_message in str(excinfo.value)
     mock_db.update_transaction.assert_called_once_with(transaction_id, **expected_call_args)
     mock_db.get_transaction_by_id.assert_not_called()  # Service's get_transaction shouldn't be called
