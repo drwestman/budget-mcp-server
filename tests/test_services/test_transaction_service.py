@@ -274,31 +274,12 @@ def test_update_transaction_db_update_fails_returns_false(transaction_service, m
         transaction_service.update_transaction(transaction_id, **update_data)
 
     expected_call_args = {
-        "envelope_id": None, "amount": 150.0, "description": None,
+        "envelope_id": None, "amount": update_data.get("amount"), "description": None,
         "date": None, "type": None
     }
-    assert f"Transaction with ID {transaction_id} not found or no valid fields to update." in str(excinfo.value)
+    assert expected_message in str(excinfo.value)
     mock_db.update_transaction.assert_called_once_with(transaction_id, **expected_call_args)
-    mock_db.get_transaction_by_id.assert_not_called() # Service's get_transaction shouldn't be called
-
-def test_update_transaction_id_not_found_via_db_update_returning_false(transaction_service, mock_db):
-    transaction_id = 999 # Non-existent transaction ID
-    update_data = {"amount": 150.0}
-    # Simulate that the DB update method returns False, indicating not found or no change
-    mock_db.update_transaction.return_value = False
-    mock_db.get_envelope_by_id.reset_mock()
-
-    with pytest.raises(ValueError) as excinfo:
-        transaction_service.update_transaction(transaction_id, **update_data)
-
-    expected_call_args = {
-        "envelope_id": None, "amount": 150.0, "description": None,
-        "date": None, "type": None
-    }
-    assert f"Transaction with ID {transaction_id} not found or no valid fields to update." in str(excinfo.value)
-    mock_db.update_transaction.assert_called_once_with(transaction_id, **expected_call_args)
-    mock_db.get_transaction_by_id.assert_not_called()
-
+    mock_db.get_transaction_by_id.assert_not_called()  # Service's get_transaction shouldn't be called
 # Tests for delete_transaction
 def test_delete_transaction_success(transaction_service, mock_db):
     transaction_id = 101
