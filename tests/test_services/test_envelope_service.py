@@ -279,19 +279,6 @@ def test_update_envelope_db_update_fails_returns_false(envelope_service, mock_db
     # get_envelope should not be called if update_envelope itself indicated failure
     mock_db.get_envelope_by_id.assert_not_called()
 
-def test_update_envelope_id_not_found_via_db_update_returning_false(envelope_service, mock_db):
-    envelope_id = 99 # Non-existent ID
-    update_data = {"budgeted_amount": 150.0}
-    # Simulate that the DB update method returns False (or 0 rows affected), indicating not found or no change
-    mock_db.update_envelope.return_value = False
-
-    with pytest.raises(ValueError) as excinfo:
-        envelope_service.update_envelope(envelope_id, **update_data)
-
-    assert f"Envelope with ID {envelope_id} not found or no valid fields to update." in str(excinfo.value)
-    mock_db.update_envelope.assert_called_once_with(envelope_id, category=None, budgeted_amount=150.0, starting_balance=None, description=None)
-    mock_db.get_envelope_by_id.assert_not_called() # get_envelope (and thus this) shouldn't be called
-
 # Tests for delete_envelope
 def test_delete_envelope_success(envelope_service, mock_db):
     envelope_id = 1
