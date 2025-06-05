@@ -40,12 +40,19 @@ class TransactionService:
             raise ValueError(f"Envelope with ID {envelope_id} does not exist.")
         if amount is not None and (not isinstance(amount, (int, float)) or amount <= 0):
             raise ValueError("Amount must be a positive number.")
-        if date is not None and not isinstance(date, str):
+        if date is not None and (not isinstance(date, str) or len(date.strip()) == 0):
             raise ValueError("Date must be a string (YYYY-MM-DD).")
         if type is not None and type not in ['income', 'expense']:
             raise ValueError("Type must be 'income' or 'expense'.")
 
-        updated = self.db.update_transaction(transaction_id, envelope_id, amount, description, date, type)
+        updated = self.db.update_transaction(
+            transaction_id,
+            envelope_id=envelope_id,
+            amount=amount,
+            description=description,
+            date=date,
+            type=type
+        )
         if not updated:
             raise ValueError(f"Transaction with ID {transaction_id} not found or no valid fields to update.")
         return self.get_transaction(transaction_id)
