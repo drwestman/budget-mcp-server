@@ -303,4 +303,14 @@ def test_delete_envelope_not_found(envelope_service, mock_db):
 
     assert f"Envelope with ID {envelope_id} not found." in str(excinfo.value)
     mock_db.get_envelope_by_id.assert_called_once_with(envelope_id)
-    mock_db.delete_envelope.assert_not_called() # Should not be called if envelope not found for deletion
+def test_delete_envelope_db_error(envelope_service, mock_db):
+    envelope_id = 1
+    mock_db.get_envelope_by_id.return_value = {"id": envelope_id, "category": "ToDelete"}
+    mock_db.delete_envelope.side_effect = Exception("Database error")
+
+    with pytest.raises(Exception) as excinfo:
+        envelope_service.delete_envelope(envelope_id)
+
+    assert "Database error" in str(excinfo.value)
+    mock_db.get_envelope_by_id.assert_called_once_with(envelope_id)
+    mock_db.delete_envelope.assert_called_once_with(envelope_id)
