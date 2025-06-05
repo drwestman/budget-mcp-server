@@ -52,7 +52,13 @@ class EnvelopeService:
         if starting_balance is not None and not isinstance(starting_balance, (int, float)):
             raise ValueError("Starting balance must be a number.")
 
-        updated = self.db.update_envelope(envelope_id, category, budgeted_amount, starting_balance, description)
+        updated = self.db.update_envelope(
+            envelope_id,
+            category=category,
+            budgeted_amount=budgeted_amount,
+            starting_balance=starting_balance,
+            description=description
+        )
         if not updated:
             raise ValueError(f"Envelope with ID {envelope_id} not found or no valid fields to update.")
         return self.get_envelope(envelope_id)
