@@ -307,4 +307,14 @@ def test_delete_transaction_not_found(transaction_service, mock_db):
 
     assert f"Transaction with ID {transaction_id} not found." in str(excinfo.value)
     mock_db.get_transaction_by_id.assert_called_once_with(transaction_id)
-    mock_db.delete_transaction.assert_not_called() # Should not be called if transaction not found
+def test_delete_transaction_db_error(transaction_service, mock_db):
+    transaction_id = 101
+    mock_db.get_transaction_by_id.return_value = {"id": transaction_id, "amount": 50}
+    mock_db.delete_transaction.side_effect = Exception("Database error")
+
+    with pytest.raises(Exception) as excinfo:
+        transaction_service.delete_transaction(transaction_id)
+
+    assert "Database error" in str(excinfo.value)
+    mock_db.get_transaction_by_id.assert_called_once_with(transaction_id)
+    mock_db.delete_transaction.assert_called_once_with(transaction_id)
