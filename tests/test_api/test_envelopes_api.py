@@ -131,6 +131,8 @@ def test_get_envelope_success(app, client, mock_envelope_service):
     assert response.json['category'] == "Groceries"
     assert response.json['budgeted_amount'] == 100.0
     assert response.json['current_balance'] == 100.0
+    assert response.json['description'] == "Monthly groceries"
+    assert response.json['starting_balance'] == 100.0
     mock_envelope_service.get_envelope.assert_called_once_with(1)
 
 def test_get_envelope_not_found(app, client, mock_envelope_service):
