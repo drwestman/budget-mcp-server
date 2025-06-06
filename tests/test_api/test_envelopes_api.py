@@ -76,8 +76,22 @@ def test_create_envelope_internal_server_error(app, client, mock_envelope_servic
 # --- GET /envelopes/ ---
 def test_get_all_envelopes_success(app, client, mock_envelope_service):
     mock_envelopes = [
-        {"id": 1, "name": "Groceries", "budget": 100.0, "balance": 100.0},
-        {"id": 2, "name": "Dining Out", "budget": 50.0, "balance": 50.0}
+        {
+            "id": 1,
+            "category": "Groceries",
+            "budgeted_amount": 100.0,
+            "starting_balance": 100.0,
+            "description": "Monthly groceries",
+            "current_balance": 100.0
+        },
+        {
+            "id": 2,
+            "category": "Dining Out",
+            "budgeted_amount": 50.0,
+            "starting_balance": 50.0,
+            "description": "Eating out",
+            "current_balance": 50.0
+        }
     ]
     api_key = app.config['API_KEY']
     headers = {'X-API-Key': api_key}
@@ -85,7 +99,9 @@ def test_get_all_envelopes_success(app, client, mock_envelope_service):
     response = client.get('/envelopes/', headers=headers)
     assert response.status_code == 200
     assert len(response.json) == 2
-    assert response.json[0]['name'] == "Groceries"
+    assert response.json[0]['category'] == "Groceries"
+    assert response.json[0]['budgeted_amount'] == 100.0
+    assert response.json[0]['current_balance'] == 100.0
     mock_envelope_service.get_all_envelopes.assert_called_once()
 
 def test_get_all_envelopes_internal_server_error(app, client, mock_envelope_service):
@@ -101,12 +117,21 @@ def test_get_all_envelopes_internal_server_error(app, client, mock_envelope_serv
 def test_get_envelope_success(app, client, mock_envelope_service):
     api_key = app.config['API_KEY']
     headers = {'X-API-Key': api_key}
-    mock_envelope = {"id": 1, "name": "Groceries", "budget": 100.0, "balance": 100.0} # This mock data might need "category" etc.
-    mock_envelope_service.get_envelope.return_value = mock_envelope # Changed get_envelope_by_id to get_envelope
+    mock_envelope = {
+        "id": 1,
+        "category": "Groceries",
+        "budgeted_amount": 100.0,
+        "starting_balance": 100.0,
+        "description": "Monthly groceries",
+        "current_balance": 100.0
+    }
+    mock_envelope_service.get_envelope.return_value = mock_envelope
     response = client.get('/envelopes/1', headers=headers)
     assert response.status_code == 200
-    assert response.json['name'] == "Groceries" # If service returns 'category', this needs update
-    mock_envelope_service.get_envelope.assert_called_once_with(1) # Changed get_envelope_by_id to get_envelope
+    assert response.json['category'] == "Groceries"
+    assert response.json['budgeted_amount'] == 100.0
+    assert response.json['current_balance'] == 100.0
+    mock_envelope_service.get_envelope.assert_called_once_with(1)
 
 def test_get_envelope_not_found(app, client, mock_envelope_service):
     api_key = app.config['API_KEY']
