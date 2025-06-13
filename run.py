@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
-Entry point for the Budget Cash Envelope REST API application.
-Run this file to start the Flask development server.
+Entry point for the Budget Cash Envelope MCP Server application.
+Run this file to start the MCP server.
 """
 import os
-from app import create_app
+import asyncio
+from mcp.server.stdio import stdio_server
+from app import create_mcp_server
 
 
-def main():
-    """Main function to run the Flask application."""
+async def main():
+    """Main function to run the MCP server."""
     # Get configuration environment from environment variable
     config_name = os.getenv('FLASK_ENV', 'development')
     
@@ -16,32 +18,37 @@ def main():
     from app.config import Config
     Config.ensure_data_directory()
     
-    # Create Flask app using the factory pattern
-    app = create_app(config_name)
+    # Create MCP server using the factory pattern
+    server = create_mcp_server(config_name)
+    
+    # Get configuration for database cleanup
+    from app.config import config
+    app_config = config[config_name]()
     
     # Clean up database file on start for development
-    if app.config.get('RESET_DB_ON_START', False):
-        db_file = app.config['DATABASE_FILE']
+    if app_config.RESET_DB_ON_START:
+        db_file = app_config.DATABASE_FILE
         if db_file != ':memory:' and os.path.exists(db_file):
             os.remove(db_file)
             print(f"Removed existing database file: {db_file}")
             # Recreate database with fresh tables
-            app.db._connect()
-            app.db._create_tables()
+            server.db._connect()
+            server.db._create_tables()
     
     # Print configuration info
     print(f"Environment: {config_name}")
-    print(f"API Key: {app.config['API_KEY']}")
-    print(f"Database File: {app.config['DATABASE_FILE']}")
-    print(f"Debug Mode: {app.config['DEBUG']}")
+    print(f"Database File: {app_config.DATABASE_FILE}")
+    print(f"Debug Mode: {app_config.DEBUG}")
+    print("Starting Budget Envelope MCP Server...")
     
-    # Run the application
-    app.run(
-        debug=app.config['DEBUG'],
-        port=int(os.getenv('PORT', 5000)),
-        host=os.getenv('HOST', '127.0.0.1')
-    )
+    # Run the MCP server
+    async with stdio_server() as (read_stream, write_stream):
+        await server.run(
+            read_stream,
+            write_stream,
+            server.create_initialization_options()
+        )
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
