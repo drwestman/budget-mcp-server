@@ -1,13 +1,13 @@
 import pytest
-from app import create_app
+from app import create_mcp_server
 
 @pytest.fixture(scope='session')
 def app():
     """Session-wide test `Flask` application."""
     # Create a new app instance for testing using the 'testing' configuration
-    app = create_app('testing')
+    app = create_mcp_server('testing')
 
-    # The create_app factory already initializes services.
+    # The create_mcp_server factory already initializes services.
     # If mocking is needed for specific tests, it should be done
     # by patching the service instances within the test functions
     # or fixtures that use the app context.

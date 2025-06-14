@@ -8,59 +8,60 @@ class EnvelopeTools:
     
     def __init__(self, envelope_service):
         self.envelope_service = envelope_service
-    
+
+    async def _create_envelope_impl(self, category: str, budgeted_amount: float, starting_balance: float = 0.0, description: str = "") -> list[TextContent]:
+        """Implementation for creating a new budget envelope."""
+        try:
+            envelope = self.envelope_service.create_envelope(
+                category, budgeted_amount, starting_balance, description
+            )
+            return [TextContent(type="text", text=json.dumps(envelope, indent=2))]
+        except ValueError as e:
+            return [TextContent(type="text", text=f"Error: {str(e)}")]
+        except Exception as e:
+            # Log the full exception for server-side debugging
+            # import logging
+            # logging.exception("An internal error occurred in _create_envelope_impl")
+            return [TextContent(type="text", text="Internal error: An unexpected error occurred. Please contact support if the issue persists.")]
+
     def register_tools(self, server: Server):
         """Register all envelope-related MCP tools with the server."""
         
-        @server.tool("create_envelope")
-        async def create_envelope(
-            category: str,
-            budgeted_amount: float,
-            starting_balance: float = 0.0,
-            description: str = ""
-        ) -> list[TextContent]:
-            """Create a new budget envelope.
-            
-            Args:
-                category: Name/category of the envelope (must be unique)
-                budgeted_amount: Planned budget amount for this envelope
-                starting_balance: Initial balance (default: 0.0)
-                description: Optional description of the envelope
-            
-            Returns:
-                Created envelope details with current balance
-            """
-            try:
-                envelope = self.envelope_service.create_envelope(
-                    category, budgeted_amount, starting_balance, description
-                )
-                return [TextContent(
-                    type="text",
-                    text=json.dumps(envelope, indent=2)
-                )]
-            except ValueError as e:
-                return [TextContent(
-                    type="text", 
-                    text=f"Error: {str(e)}"
-                )]
-            except Exception as e:  
-                # Log the full exception for server-side debugging  
-                # import logging  
-                # logging.exception("An internal error occurred in create_envelope")  
-                return [TextContent(  
-                    type="text",  
-                    text="Internal error: An unexpected error occurred. Please contact support if the issue persists."  
-                )]
+        create_envelope_input_schema = {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string", "description": "Name/category of the envelope (must be unique)"},
+                "budgeted_amount": {"type": "number", "description": "Planned budget amount for this envelope"},
+                "starting_balance": {"type": "number", "description": "Initial balance (default: 0.0)"},
+                "description": {"type": "string", "description": "Optional description of the envelope"}
+            },
+            "required": ["category", "budgeted_amount"]
+        }
+
+        create_envelope_tool = Tool(
+            name="create_envelope",
+            description="Create a new budget envelope.",
+            func=self._create_envelope_impl, # Point to the class method
+            inputSchema=create_envelope_input_schema
+        )
+
+        if not hasattr(server, 'tools') or server.tools is None:
+            server.tools = []
+        server.tools.append(create_envelope_tool)
         
+        # Keep original registration for other tools for now
         @server.tool("list_envelopes")
-        async def list_envelopes() -> list[TextContent]:
+        async def list_envelopes() -> list[TextContent]: # Corrected to keep original signature
             """Get all budget envelopes with their current balances.
             
+            Args: # Args was missing in a previous attempt, ensuring it's here.
+                # No arguments here for list_envelopes in this context.
+
             Returns:
                 List of all envelopes with current balance calculations
             """
             try:
-                envelopes = self.envelope_service.get_all_envelopes()
+                envelopes = self.envelope_service.get_all_envelopes() # Uses self
                 return [TextContent(
                     type="text",
                     text=json.dumps(envelopes, indent=2)
@@ -70,7 +71,7 @@ class EnvelopeTools:
                     type="text",
                     text=f"Internal error: {str(e)}"
                 )]
-        
+
         @server.tool("get_envelope")
         async def get_envelope(envelope_id: int) -> list[TextContent]:
             """Get specific envelope details by ID.
