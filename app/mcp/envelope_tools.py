@@ -43,10 +43,13 @@ class EnvelopeTools:
                     type="text", 
                     text=f"Error: {str(e)}"
                 )]
-            except Exception as e:
-                return [TextContent(
-                    type="text",
-                    text=f"Internal error: {str(e)}"
+            except Exception as e:  
+                # Log the full exception for server-side debugging  
+                # import logging  
+                # logging.exception("An internal error occurred in create_envelope")  
+                return [TextContent(  
+                    type="text",  
+                    text="Internal error: An unexpected error occurred. Please contact support if the issue persists."  
                 )]
         
         @server.tool("list_envelopes")

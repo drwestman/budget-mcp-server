@@ -44,10 +44,13 @@ class UtilityTools:
                     type="text",
                     text=json.dumps(balance_info, indent=2)
                 )]
-            except Exception as e:
-                return [TextContent(
-                    type="text",
-                    text=f"Internal error: {str(e)}"
+            except Exception as e:  
+                # Log the full exception for server-side debugging  
+                # import logging  
+                # logging.exception("An internal error occurred in get_envelope_balance")  
+                return [TextContent(  
+                    type="text",  
+                    text="Internal error: An unexpected error occurred. Please contact support if the issue persists."  
                 )]
         
         @server.tool("get_budget_summary")
