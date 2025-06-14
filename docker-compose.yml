@@ -6,7 +6,7 @@ services:
     profiles:
       - prod
     environment:
-      - FLASK_ENV=production
+      - APP_ENV=production
       - DATABASE_FILE=/app/data/budget_app.duckdb
     volumes:
       - budget_data:/app/data
@@ -15,7 +15,7 @@ services:
   budget-mcp-server-dev:
     build: .
     environment:
-      - FLASK_ENV=development
+      - APP_ENV=development
       - DATABASE_FILE=/app/data/budget_app.duckdb
     volumes:
       - budget_data:/app/data

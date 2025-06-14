@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-ENV FLASK_ENV=production
+ENV APP_ENV=production
 
 # Create volume mount point for data persistence
 VOLUME ["/app/data"]

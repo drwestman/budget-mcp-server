@@ -12,7 +12,7 @@ from app import create_mcp_server
 async def main():
     """Main function to run the MCP server."""
     # Get configuration environment from environment variable
-    config_name = os.getenv('FLASK_ENV', 'development')
+    config_name = os.getenv('APP_ENV', 'development')
     
     # Ensure data directory exists for database file
     from app.config import Config

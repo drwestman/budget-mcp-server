@@ -127,7 +127,7 @@ MCP server runs in a controlled environment with tool-level access control throu
 
 ## Key Configuration
 - `DATABASE_FILE`: DuckDB database file path - stores all budget data
-- `FLASK_ENV`: Set to 'production' or 'development' (controls database reset behavior)
+- `APP_ENV`: Set to 'production' or 'development' (controls database reset behavior)
 - Database is reset on each application start during development mode
 
 ## Docker Configuration
@@ -138,10 +138,10 @@ MCP server runs in a controlled environment with tool-level access control throu
 - **docker-compose.yml**: Production and development service configurations
 
 ### Environment Variables
-- `FLASK_ENV`: Set to 'production' or 'development' (default: development)
+- `APP_ENV`: Set to 'production' or 'development' (default: development)
 - `DATABASE_FILE`: Database file path (default: /app/data/budget_app.duckdb in containers)
 
 ### Data Persistence
 - Database files are stored in Docker volume `budget_data` mounted at `/app/data`
 - Volume ensures data persistence between container restarts
-- Production mode (`FLASK_ENV=production`) disables database reset on startup
+- Production mode (`APP_ENV=production`) disables database reset on startup

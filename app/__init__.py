@@ -19,7 +19,7 @@ def create_mcp_server(config_name=None):
         Server: Configured MCP server instance
     """
     if config_name is None:
-        config_name = os.getenv('FLASK_ENV', 'default')
+        config_name = os.getenv('APP_ENV', 'default')
     
     # Get configuration
     app_config = config[config_name]()
