@@ -4,17 +4,45 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This is a Budget Cash Envelope REST API built with Python Flask and DuckDB. It implements a cash envelope budgeting system where users can create budget envelopes (categories) and track income/expense transactions against them.
+This is a Budget Cash Envelope MCP Server built with Python and DuckDB. It implements a cash envelope budgeting system where AI assistants can create budget envelopes (categories) and track income/expense transactions against them through MCP (Model Context Protocol) tools.
+
+## MCP Server Conversion Plan
+
+### Conversion Strategy
+This project is being converted from a Flask REST API to an MCP server while preserving:
+- Existing business logic in services layer
+- Database architecture and models
+- SOLID principles and TDD approach
+- Validation and error handling
+
+### MCP Tools to Implement
+**Envelope Management:**
+- `create_envelope` - Create a new budget envelope
+- `list_envelopes` - Get all envelopes with current balances
+- `get_envelope` - Get specific envelope details by ID
+- `update_envelope` - Modify envelope properties
+- `delete_envelope` - Remove an envelope
+
+**Transaction Management:**
+- `create_transaction` - Add income/expense transaction
+- `list_transactions` - Get transactions (optionally filtered by envelope)
+- `get_transaction` - Get specific transaction by ID
+- `update_transaction` - Modify transaction details
+- `delete_transaction` - Remove a transaction
+
+**Utility Tools:**
+- `get_envelope_balance` - Get current balance for specific envelope
+- `get_budget_summary` - Get overall budget status
 
 ## Development Commands
 
-### Running the Application
+### Running the MCP Server
 
 #### Local Development
 ```bash
 python3 run.py
 ```
-The application runs on port 5000 in debug mode. The database file `budget_app.duckdb` is automatically created and reset on each run during development.
+The MCP server starts and listens for MCP protocol connections. The database file `budget_app.duckdb` is automatically created and reset on each run during development.
 
 #### Docker Development
 ```bash
@@ -25,8 +53,8 @@ docker-compose up -d
 docker-compose --profile dev up
 
 # Manual Docker build and run
-docker build -t budget-rest-api .
-docker run -p 5000:5000 -v budget_data:/app/data budget-rest-api
+docker build -t budget-mcp-server .
+docker run -v budget_data:/app/data budget-mcp-server
 ```
 
 ### Dependencies
@@ -41,23 +69,22 @@ pip install --break-system-packages -r requirements.txt
 ```
 
 Required packages:
-- Flask (>=2.3.0)
-- DuckDB (>=0.8.0)
+- mcp (>=1.0.0) - MCP server framework
+- DuckDB (>=0.8.0) - Database
 - pytest (>=7.0.0) - for testing
-- pytest-flask (>=1.2.0) - for testing
 
 ## Architecture
 
-### Modular Flask Architecture
-The application follows Flask best practices with clear separation of concerns:
+### Modular MCP Server Architecture
+The application follows MCP best practices with clear separation of concerns:
 
 - **app/models/database.py**: `Database` class handles all DuckDB interactions, table creation, and CRUD operations
 - **app/services/**: Business logic classes (`EnvelopeService`, `TransactionService`) with validation
-- **app/api/**: Flask Blueprint definitions for envelope and transaction endpoints
-- **app/utils/**: Authentication decorators and error handlers
+- **app/mcp/**: MCP tool definitions for envelope and transaction operations
+- **app/utils/**: Error handlers and utility functions
 - **app/config.py**: Configuration management for different environments
-- **app/__init__.py**: Application factory pattern
-- **run.py**: Application entry point
+- **app/__init__.py**: MCP server factory pattern
+- **run.py**: MCP server entry point
 - **tests/**: Test directories organized by component
 
 ### Database Schema
@@ -69,54 +96,52 @@ The application follows Flask best practices with clear separation of concerns:
 - Foreign key constraints cannot use CASCADE options in DuckDB
 - Tables are recreated on each application restart during development
 
-### API Authentication
-All endpoints except `/health` require an `X-API-Key` header with the value defined in `API_KEY` constant (line 9).
+### MCP Tool Security
+MCP server runs in a controlled environment with tool-level access control through the MCP protocol.
 
 ### Key Design Patterns
 - Dependency Injection: Services receive Database instance in constructor
 - Single Responsibility: Each class has one clear purpose
-- Blueprint organization: Separate blueprints for envelopes and transactions
-- Global error handling: Custom error handlers for common HTTP errors
+- Tool organization: Separate tool groups for envelopes and transactions
+- Structured error handling: Consistent error responses across all tools
 
-## API Endpoints
+## MCP Tools
 
-### Envelopes
-- `POST /envelopes/` - Create envelope
-- `GET /envelopes/` - List all envelopes (with current balance)
-- `GET /envelopes/<id>` - Get envelope by ID
-- `PUT /envelopes/<id>` - Update envelope
-- `DELETE /envelopes/<id>` - Delete envelope
+### Envelope Tools
+- `create_envelope` - Create new budget envelope
+- `list_envelopes` - List all envelopes with current balances
+- `get_envelope` - Get envelope details by ID
+- `update_envelope` - Update envelope properties
+- `delete_envelope` - Delete envelope by ID
 
-### Transactions  
-- `POST /transactions/` - Create transaction
-- `GET /transactions/` - List all transactions (or filter by `?envelope_id=<id>`)
-- `GET /transactions/<id>` - Get transaction by ID
-- `PUT /transactions/<id>` - Update transaction
-- `DELETE /transactions/<id>` - Delete transaction
+### Transaction Tools  
+- `create_transaction` - Create new transaction
+- `list_transactions` - List transactions (optionally filtered by envelope_id)
+- `get_transaction` - Get transaction details by ID
+- `update_transaction` - Update transaction properties
+- `delete_transaction` - Delete transaction by ID
 
-### Health Check
-- `GET /health` - Health check (no authentication required)
+### Utility Tools
+- `get_envelope_balance` - Get current balance for specific envelope
+- `get_budget_summary` - Get overall budget status and summary
 
 ## Key Configuration
-- `API_KEY`: Authentication key (line 9) - change for production
-- `DATABASE_FILE`: DuckDB database file path (line 10)
-- Database is reset on each application start during development (lines 697-699)
+- `DATABASE_FILE`: DuckDB database file path - stores all budget data
+- `APP_ENV`: Set to 'production' or 'development' (controls database reset behavior)
+- Database is reset on each application start during development mode
 
 ## Docker Configuration
 
 ### Container Files
-- **Dockerfile**: Multi-stage Python 3.11-slim build with health checks
+- **Dockerfile**: Multi-stage Python 3.11-slim build optimized for MCP server
 - **.dockerignore**: Excludes development files, cache, and virtual environments
 - **docker-compose.yml**: Production and development service configurations
 
 ### Environment Variables
-- `FLASK_ENV`: Set to 'production' or 'development' (default: development)
-- `HOST`: Container host binding (default: 0.0.0.0 for containers)
-- `PORT`: Application port (default: 5000)
-- `API_KEY`: Authentication key for API access
+- `APP_ENV`: Set to 'production' or 'development' (default: development)
 - `DATABASE_FILE`: Database file path (default: /app/data/budget_app.duckdb in containers)
 
 ### Data Persistence
 - Database files are stored in Docker volume `budget_data` mounted at `/app/data`
 - Volume ensures data persistence between container restarts
-- Production mode (`FLASK_ENV=production`) disables database reset on startup
+- Production mode (`APP_ENV=production`) disables database reset on startup

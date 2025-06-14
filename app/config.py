@@ -3,9 +3,7 @@ import os
 
 class Config:
     """Base configuration class."""
-    API_KEY = os.getenv('API_KEY', 'your_super_secret_api_key_12345')
     DATABASE_FILE = os.getenv('DATABASE_FILE', 'budget_app.duckdb')
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     
     @staticmethod
     def ensure_data_directory():

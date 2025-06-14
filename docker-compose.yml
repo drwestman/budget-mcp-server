@@ -1,35 +1,21 @@
 version: '3.8'
 
 services:
-  budget-api:
+  budget-mcp-server:
     build: .
-    ports:
-      - "5000:5000"
+    profiles:
+      - prod
     environment:
-      - FLASK_ENV=production
-      - HOST=0.0.0.0
-      - PORT=5000
-      - API_KEY=${API_KEY:-your_super_secret_api_key_12345}
+      - APP_ENV=production
       - DATABASE_FILE=/app/data/budget_app.duckdb
     volumes:
       - budget_data:/app/data
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
-  budget-api-dev:
+  budget-mcp-server-dev:
     build: .
-    ports:
-      - "5000:5000"
     environment:
-      - FLASK_ENV=development
-      - HOST=0.0.0.0
-      - PORT=5000
-      - API_KEY=${API_KEY:-your_super_secret_api_key_12345}
+      - APP_ENV=development
       - DATABASE_FILE=/app/data/budget_app.duckdb
     volumes:
       - budget_data:/app/data

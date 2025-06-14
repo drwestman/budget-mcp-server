@@ -178,7 +178,7 @@ pytest
 
 ### Environment Variables
 
-- `FLASK_ENV`: Set to 'production' or 'development' (default: development)
+- `APP_ENV`: Set to 'production' or 'development' (default: development)
 - `HOST`: Host binding (default: 127.0.0.1 for local, 0.0.0.0 for containers)
 - `PORT`: Application port (default: 5000)
 - `API_KEY`: Authentication key for API access

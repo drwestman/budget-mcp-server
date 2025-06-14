@@ -1,12 +1,12 @@
 # Application Structure
 
 ## About
-Budget REST API is a endpoint for an application to view, edit, and delete financial transactions for a household or business budget.  
+Budget MCP Server allows a AI agent to view, edit, and delete financial transactions for a household or business budget.  
 It uses a cash envelope system.
 
 ## Architecture
-- Python Flask REST API
-- Duckdb for persistance
+- Python MCP Server
+- Duckdb for persistence
 - pytest for unit tests
 - SOLID principles
 - TDD techniques
