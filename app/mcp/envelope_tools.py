@@ -1,4 +1,23 @@
+from ast import List
 from mcp.server import Server
+"""Implementation for creating a new budget envelope.
+    Creates a new budget envelope with the specified parameters and returns the result
+    as a list of TextContent objects suitable for MCP server responses.
+        category (str): Name/category of the envelope (must be unique across all envelopes)
+        budgeted_amount (float): Planned budget amount for this envelope (must be positive)
+        starting_balance (float, optional): Initial balance for the envelope. Defaults to 0.0
+        description (str, optional): Optional description providing additional context about 
+            the envelope's purpose. Defaults to empty string
+        list[TextContent]: A list containing a single TextContent object with:
+            - On success: JSON-formatted envelope data including id, category, budgeted_amount,
+            starting_balance, description, and creation timestamp
+            - On ValueError: Error message describing validation failures (e.g., duplicate 
+            category, invalid amount)
+            - On unexpected error: Generic internal error message for security
+    Raises:
+        No exceptions are raised - all errors are caught and returned as TextContent
+    error messages to maintain MCP protocol compliance.
+"""
 from mcp.types import Tool, TextContent
 import json
 
@@ -54,11 +73,11 @@ class EnvelopeTools:
         async def list_envelopes() -> list[TextContent]: # Corrected to keep original signature
             """Get all budget envelopes with their current balances.
             
-            Args: # Args was missing in a previous attempt, ensuring it's here.
-                # No arguments here for list_envelopes in this context.
+                Args: # Args was missing in a previous attempt, ensuring it's here.
+                    # No arguments here for list_envelopes in this context.
 
-            Returns:
-                List of all envelopes with current balance calculations
+                Returns:
+                    List of all envelopes with current balance calculations
             """
             try:
                 envelopes = self.envelope_service.get_all_envelopes() # Uses self
