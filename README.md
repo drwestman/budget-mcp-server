@@ -189,8 +189,6 @@ The AI will use the `get_budget_summary` tool to provide a comprehensive overvie
 
 ## Development
 
-## Development
-
 ### Project Structure
 
 ```
@@ -208,8 +206,6 @@ budget-mcp-server/
 │   │   ├── envelope_service.py
 │   │   └── transaction_service.py
 │   └── utils/               # Utilities
-│       ├── auth.py          # Authentication utilities
-│       └── error_handlers.py
 ├── tests/                   # Test suite
 ├── run.py                   # MCP server entry point
 ├── pyproject.toml          # Project configuration (uv)

@@ -9,7 +9,7 @@ dependencies = [
     "mcp>=1.0.0",
 ]
 
-[dependency-groups]
+[tool.uv.dev-dependencies]
 dev = [
     "pytest>=8.4.1",
 ]
