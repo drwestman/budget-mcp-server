@@ -29,7 +29,30 @@ class EnvelopeTools:
         self.envelope_service = envelope_service
 
     async def _create_envelope_impl(self, category: str, budgeted_amount: float, starting_balance: float = 0.0, description: str = "") -> list[TextContent]:
-        """Implementation for creating a new budget envelope."""
+        """Implementation for creating a new budget envelope.
+        
+        Creates a new budget envelope with the specified parameters and returns the result
+        as a list of TextContent objects suitable for MCP server responses.
+        
+        Args:
+            category (str): Name/category of the envelope (must be unique across all envelopes)
+            budgeted_amount (float): Planned budget amount for this envelope (must be positive)
+            starting_balance (float, optional): Initial balance for the envelope. Defaults to 0.0
+            description (str, optional): Optional description providing additional context about 
+            the envelope's purpose. Defaults to empty string
+        
+        Returns:
+            list[TextContent]: A list containing a single TextContent object with:
+            - On success: JSON-formatted envelope data including id, category, budgeted_amount,
+              starting_balance, description, and creation timestamp
+            - On ValueError: Error message describing validation failures (e.g., duplicate 
+              category, invalid amount)
+            - On unexpected error: Generic internal error message for security
+        
+        Raises:
+            No exceptions are raised - all errors are caught and returned as TextContent
+            error messages to maintain MCP protocol compliance.
+        """
         try:
             envelope = self.envelope_service.create_envelope(
                 category, budgeted_amount, starting_balance, description
@@ -44,6 +67,29 @@ class EnvelopeTools:
             return [TextContent(type="text", text="Internal error: An unexpected error occurred. Please contact support if the issue persists.")]
 
     def register_tools(self, server: Server):
+        """Register all envelope-related MCP tools with the server."""
+        
+        create_envelope_input_schema = {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string", "description": "Name/category of the envelope (must be unique)"},
+                "budgeted_amount": {"type": "number", "description": "Planned budget amount for this envelope"},
+                "starting_balance": {"type": "number", "description": "Initial balance (default: 0.0)"},
+                "description": {"type": "string", "description": "Optional description of the envelope"}
+            },
+            "required": ["category", "budgeted_amount"]
+        }
+
+        create_envelope_tool = Tool(
+            name="create_envelope",
+            description="Create a new budget envelope.",
+            func=self._create_envelope_impl, # Point to the class method
+            inputSchema=create_envelope_input_schema
+        )
+
+        if getattr(server, 'tools', None) is None:
+            server.tools = []
+        server.tools.append(create_envelope_tool)
         """Register all envelope-related MCP tools with the server."""
         
         create_envelope_input_schema = {

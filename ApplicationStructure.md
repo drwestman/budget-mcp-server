@@ -6,7 +6,7 @@ It uses a cash envelope system.
 
 ## Architecture
 - Use [uv](https://docs.astral.sh/uv/) for Python packeage management and virtual environments.
-- Python MCP Server
+- Python MCP Server [python-sdk](https://github.com/modelcontextprotocol/python-sdk)
 - Duckdb for persistence
 - pytest for unit tests
 - SOLID principles
