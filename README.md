@@ -1,21 +1,28 @@
-# Budget REST API
+# Budget MCP Server
 
-A Flask-based REST API for managing household or business budgets using the cash envelope system. This API allows you to create budget envelopes (categories), track income and expense transactions, and monitor your financial allocations.
+A Model Context Protocol (MCP) Server that enables AI agents to manage household or business budgets using the cash envelope system. This server provides tools for AI agents to create budget envelopes, track transactions, and monitor financial allocations through the MCP protocol.
+
+## What is MCP?
+
+The [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) is an open standard that enables AI assistants to securely connect to external data sources and tools. This budget server implements MCP to allow AI agents like Claude to directly interact with your budget data.
 
 ## Features
 
+- **AI Agent Integration**: Designed for seamless integration with AI assistants via MCP
 - **Cash Envelope Budgeting**: Create and manage budget categories with allocated amounts
 - **Transaction Management**: Track income and expense transactions against budget envelopes
-- **Real-time Balance Tracking**: Monitor current balances for each envelope
-- **RESTful API**: Clean, consistent API endpoints following REST principles
+- **Real-time Balance Tracking**: Monitor current balances and budget summaries
 - **Lightweight Database**: Uses DuckDB for fast, embedded database operations
-- **Docker Support**: Containerized deployment with development and production configurations
+- **Modern Python Tooling**: Built with uv for fast, reliable dependency management
+- **Docker Support**: Containerized deployment for development and production
 
 ## Tech Stack
 
-- **Backend**: Python 3.11, Flask
+- **Runtime**: Python 3.12+
+- **Protocol**: Model Context Protocol (MCP)
 - **Database**: DuckDB
-- **Testing**: pytest, pytest-flask
+- **Package Management**: uv
+- **Testing**: pytest
 - **Containerization**: Docker, Docker Compose
 - **Architecture**: SOLID principles, Test-Driven Development (TDD)
 
@@ -23,108 +30,145 @@ A Flask-based REST API for managing household or business budgets using the cash
 
 ### Prerequisites
 
-- Python 3.11+
-- pip
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip
 
-### Local Development Setup
+### Using uv (Recommended)
 
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd budget-rest-api
+cd budget-mcp-server
 ```
 
-2. Install dependencies:
+2. Install dependencies with uv:
+```bash
+uv sync
+```
+
+3. Run the MCP server:
+```bash
+uv run python run.py
+```
+
+### Using pip (Alternative)
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd budget-mcp-server
+```
+
+2. Create a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-**Note**: On systems with externally-managed Python environments (like Ubuntu/Debian), you may need to use:
+4. Run the MCP server:
 ```bash
-pip install --break-system-packages -r requirements.txt
+python run.py
 ```
-
-3. Run the application:
-```bash
-python3 run.py
-```
-
-The API will be available at `http://localhost:5000`
 
 ### Docker Setup
+
+#### Development Mode
+```bash
+docker-compose --profile dev up
+```
 
 #### Production Mode
 ```bash
 docker-compose up -d
 ```
 
-#### Development Mode (with code mounting)
-```bash
-docker-compose --profile dev up
+## Integration with AI Assistants
+
+This MCP server is designed to be integrated with AI assistants. Here's how to configure it:
+
+### Claude Desktop Integration
+
+Add the following to your Claude Desktop configuration file:
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "budget-envelope": {
+      "command": "uv",
+      "args": ["run", "python", "/path/to/budget-mcp-server/run.py"],
+      "cwd": "/path/to/budget-mcp-server"
+    }
+  }
+}
 ```
 
-#### Manual Docker Build
-```bash
-docker build -t budget-rest-api .
-docker run -p 5000:5000 -v budget_data:/app/data budget-rest-api
-```
+### Other MCP Clients
 
-## API Documentation
+The server communicates via stdio and can be integrated with any MCP-compatible client. Run the server and connect to its stdin/stdout streams.
 
-### Authentication
+## Available MCP Tools
 
-All endpoints except `/health` require an `X-API-Key` header with a valid API key.
+The server provides the following tools for AI agents:
 
-```bash
-curl -H "X-API-Key: your-api-key-here" http://localhost:5000/envelopes
-```
+### Envelope Management
+- **`create_envelope`** - Create a new budget envelope
+  - Parameters: `category` (string), `budgeted_amount` (number), `starting_balance` (number, optional), `description` (string, optional)
+- **`list_envelopes`** - List all budget envelopes with current balances
+- **`get_envelope`** - Get details of a specific envelope by ID
+  - Parameters: `envelope_id` (number)
+- **`update_envelope`** - Update envelope details
+  - Parameters: `envelope_id` (number), `category` (string, optional), `budgeted_amount` (number, optional), `description` (string, optional)
+- **`delete_envelope`** - Delete an envelope
+  - Parameters: `envelope_id` (number)
 
-### Endpoints
+### Transaction Management
+- **`create_transaction`** - Create a new income or expense transaction
+  - Parameters: `envelope_id` (number), `amount` (number), `description` (string), `type` (string: "income" or "expense")
+- **`list_transactions`** - List all transactions, optionally filtered by envelope
+  - Parameters: `envelope_id` (number, optional)
+- **`get_transaction`** - Get details of a specific transaction by ID
+  - Parameters: `transaction_id` (number)
+- **`update_transaction`** - Update transaction details
+  - Parameters: `transaction_id` (number), `amount` (number, optional), `description` (string, optional), `type` (string, optional)
+- **`delete_transaction`** - Delete a transaction
+  - Parameters: `transaction_id` (number)
 
-#### Health Check
-- `GET /health` - Health check (no authentication required)
+### Utility Tools
+- **`get_envelope_balance`** - Get current balance for a specific envelope
+  - Parameters: `envelope_id` (number)
+- **`get_budget_summary`** - Get comprehensive budget overview with all envelopes and balances
 
-#### Envelopes
-- `POST /envelopes/` - Create a new envelope
-- `GET /envelopes/` - List all envelopes with current balances
-- `GET /envelopes/<id>` - Get specific envelope by ID
-- `PUT /envelopes/<id>` - Update envelope details
-- `DELETE /envelopes/<id>` - Delete envelope
+## Usage Examples
 
-#### Transactions
-- `POST /transactions/` - Create a new transaction
-- `GET /transactions/` - List all transactions (optional: `?envelope_id=<id>` to filter)
-- `GET /transactions/<id>` - Get specific transaction by ID
-- `PUT /transactions/<id>` - Update transaction details
-- `DELETE /transactions/<id>` - Delete transaction
+Once integrated with an AI assistant, you can interact with your budget using natural language:
 
-### Example Usage
+### Creating Envelopes
+> "Create a grocery budget envelope with $500 allocated for this month"
 
-#### Create an Envelope
-```bash
-curl -X POST http://localhost:5000/envelopes/ \
-  -H "X-API-Key: your-api-key-here" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "category": "Groceries",
-    "budgeted_amount": 500.00,
-    "starting_balance": 500.00,
-    "description": "Monthly grocery budget"
-  }'
-```
+The AI will use the `create_envelope` tool to create the envelope.
 
-#### Create a Transaction
-```bash
-curl -X POST http://localhost:5000/transactions/ \
-  -H "X-API-Key: your-api-key-here" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "envelope_id": 1,
-    "amount": -75.50,
-    "description": "Weekly grocery shopping",
-    "type": "expense"
-  }'
-```
+### Adding Transactions  
+> "I spent $75.50 at the grocery store today"
+
+The AI will use the `create_transaction` tool to record the expense against the appropriate envelope.
+
+### Checking Balances
+> "How much money do I have left in my grocery budget?"
+
+The AI will use the `get_envelope_balance` tool to check your current balance.
+
+### Budget Overview
+> "Show me a summary of all my budget categories and balances"
+
+The AI will use the `get_budget_summary` tool to provide a comprehensive overview.
 
 ## Database Schema
 
@@ -145,58 +189,83 @@ curl -X POST http://localhost:5000/transactions/ \
 
 ## Development
 
+## Development
+
 ### Project Structure
 
 ```
-budget-rest-api/
+budget-mcp-server/
 ├── app/
-│   ├── __init__.py          # Application factory
+│   ├── __init__.py          # MCP server factory
 │   ├── config.py            # Configuration management
-│   ├── api/                 # API endpoints
-│   │   ├── envelopes.py     # Envelope routes
-│   │   └── transactions.py  # Transaction routes
+│   ├── mcp/                 # MCP tool implementations
+│   │   ├── envelope_tools.py     # Envelope management tools
+│   │   ├── transaction_tools.py  # Transaction management tools
+│   │   └── utility_tools.py      # Utility and summary tools
 │   ├── models/              # Data models
 │   │   └── database.py      # Database operations
 │   ├── services/            # Business logic
 │   │   ├── envelope_service.py
 │   │   └── transaction_service.py
 │   └── utils/               # Utilities
-│       ├── auth.py          # Authentication
+│       ├── auth.py          # Authentication utilities
 │       └── error_handlers.py
 ├── tests/                   # Test suite
-├── run.py                   # Application entry point
-├── requirements.txt         # Python dependencies
+├── run.py                   # MCP server entry point
+├── pyproject.toml          # Project configuration (uv)
+├── requirements.txt        # Dependencies (pip fallback)
+├── uv.lock                 # Dependency lockfile (uv)
 ├── Dockerfile              # Container definition
 └── docker-compose.yml     # Container orchestration
 ```
 
 ### Running Tests
 
+With uv:
+```bash
+uv run pytest
+```
+
+With pip:
 ```bash
 pytest
 ```
 
 ### Environment Variables
 
-- `APP_ENV`: Set to 'production' or 'development' (default: development)
-- `HOST`: Host binding (default: 127.0.0.1 for local, 0.0.0.0 for containers)
-- `PORT`: Application port (default: 5000)
-- `API_KEY`: Authentication key for API access
-- `DATABASE_FILE`: Database file path
+- `APP_ENV`: Set to 'production', 'development', or 'testing' (default: development)
+- `DATABASE_FILE`: Database file path (default: `./data/budget_app.duckdb`)
 
 ### Configuration
 
-The application uses different configurations for development and production:
+The application uses different configurations for different environments:
 
 - **Development**: Database resets on each restart, debug mode enabled
 - **Production**: Database persistence, optimized for deployment
+- **Testing**: In-memory database, isolated test environment
+
+## Cash Envelope Budgeting System
+
+This server implements the traditional cash envelope budgeting method digitally:
+
+### How It Works
+1. **Create Envelopes**: Set up budget categories (e.g., "Groceries", "Gas", "Entertainment")
+2. **Allocate Money**: Assign a budgeted amount to each envelope
+3. **Track Spending**: Record transactions against the appropriate envelope
+4. **Monitor Balances**: Keep track of remaining funds in each envelope
+
+### Benefits
+- **Intentional Spending**: Every dollar has a purpose
+- **Overspending Prevention**: Can't spend more than what's in the envelope
+- **Clear Visibility**: See exactly where your money is going
+- **Flexible Categories**: Create envelopes that match your lifestyle
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes following SOLID principles and TDD practices
-4. Ensure all tests pass (`pytest`)
+4. Ensure all tests pass (`uv run pytest`)
 5. Commit your changes (`git commit -m 'Add amazing feature'`)
 6. Push to the branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
@@ -205,9 +274,10 @@ The application uses different configurations for development and production:
 
 - Follow SOLID principles
 - Use Test-Driven Development (TDD)
-- Keep functions/methods under 50 lines
+- Keep functions/methods focused and under 50 lines
 - Write comprehensive tests for new features
 - Update documentation as needed
+- Use uv for dependency management
 
 ## License
 
@@ -215,4 +285,4 @@ The application uses different configurations for development and production:
 
 ## Support
 
-[Add contact information or support channels here]
+For questions about MCP integration or budget management features, please open an issue on GitHub.
