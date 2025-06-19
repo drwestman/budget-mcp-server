@@ -5,9 +5,18 @@ from app.config import config
 from app.models.database import Database
 from app.services.envelope_service import EnvelopeService
 from app.services.transaction_service import TransactionService
+
+# Explicitly import the tool modules first to ensure @register decorators run
+import app.mcp.envelope_tools
+import app.mcp.transaction_tools
+import app.mcp.utility_tools
+
+# Then import the classes and the registration utilities
 from app.mcp.envelope_tools import EnvelopeTools
 from app.mcp.transaction_tools import TransactionTools
 from app.mcp.utility_tools import UtilityTools
+from app.mcp.registry import register_all_tools # Import the new registration function
+from app.mcp.registry import TOOL_REGISTRY # For debugging
 
 
 def create_mcp_server(config_name=None):
@@ -32,14 +41,19 @@ def create_mcp_server(config_name=None):
     # Create MCP server
     server = Server("budget-envelope-server")
     
-    # Initialize and register MCP tools
-    envelope_tools = EnvelopeTools(envelope_service)
-    transaction_tools = TransactionTools(transaction_service)
-    utility_tools = UtilityTools(envelope_service, transaction_service, db)
+    # Initialize tool classes.
+    # Importing these classes (as done above) executes their respective modules,
+    # which in turn executes the @register decorators, populating TOOL_REGISTRY.
+    envelope_tools_instance = EnvelopeTools(envelope_service)
+    transaction_tools_instance = TransactionTools(transaction_service)
+    utility_tools_instance = UtilityTools(envelope_service, transaction_service, db)
+
+    # Register all tools from the TOOL_REGISTRY.
+    # Pass all instances that contain registered methods.
+    # register_all_tools will bind methods from TOOL_REGISTRY to these instances.
+    all_tool_instances = [envelope_tools_instance, transaction_tools_instance, utility_tools_instance]
     
-    envelope_tools.register_tools(server)
-    transaction_tools.register_tools(server)
-    utility_tools.register_tools(server)
+    register_all_tools(server, all_tool_instances)
     
     # Store database instance for cleanup if needed
     server.db = db
