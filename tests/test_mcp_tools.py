@@ -24,11 +24,11 @@ class TestMCPTools:
     async def test_create_envelope_tool(self, server):
         """Test the create_envelope MCP tool."""
         # Get the tool function from server
-        tools = {tool.name: tool for tool in server._tools}
-        create_envelope_tool = tools['create_envelope']
+        tools = {tool.name: tool for tool in server.tools} # Changed from server._tools
+        create_envelope_tool_obj = tools['create_envelope']
         
         # Test creating an envelope
-        result = await create_envelope_tool.handler(
+        result = await create_envelope_tool_obj.func( # Changed from .handler
             category="Groceries",
             budgeted_amount=500.0,
             starting_balance=100.0,
@@ -50,12 +50,12 @@ class TestMCPTools:
     async def test_list_envelopes_tool(self, server):
         """Test the list_envelopes MCP tool."""
         # Get the tool function from server
-        tools = {tool.name: tool for tool in server._tools}
-        create_envelope_tool = tools['create_envelope']
-        list_envelopes_tool = tools['list_envelopes']
+        tools = {tool.name: tool for tool in server.tools} # Changed from server._tools
+        create_envelope_tool_obj = tools['create_envelope']
+        list_envelopes_tool_obj = tools['list_envelopes']
         
         # Create a test envelope first
-        await create_envelope_tool.handler(
+        await create_envelope_tool_obj.func( # Changed from .handler
             category="Test Category",
             budgeted_amount=200.0,
             starting_balance=50.0,
@@ -63,7 +63,7 @@ class TestMCPTools:
         )
         
         # Test listing envelopes
-        result = await list_envelopes_tool.handler()
+        result = await list_envelopes_tool_obj.func() # Changed from .handler
         
         assert len(result) == 1
         assert result[0].type == "text"
@@ -83,12 +83,12 @@ class TestMCPTools:
     async def test_create_transaction_tool(self, server):
         """Test the create_transaction MCP tool."""
         # Get the tool functions from server
-        tools = {tool.name: tool for tool in server._tools}
-        create_envelope_tool = tools['create_envelope']
-        create_transaction_tool = tools['create_transaction']
+        tools = {tool.name: tool for tool in server.tools} # Changed from server._tools
+        create_envelope_tool_obj = tools['create_envelope']
+        create_transaction_tool_obj = tools['create_transaction']
         
         # Create an envelope first
-        envelope_result = await create_envelope_tool.handler(
+        envelope_result = await create_envelope_tool_obj.func( # Changed from .handler
             category="Test Budget",
             budgeted_amount=300.0,
             starting_balance=200.0,
@@ -98,7 +98,7 @@ class TestMCPTools:
         envelope_id = envelope_data['id']
         
         # Test creating a transaction
-        result = await create_transaction_tool.handler(
+        result = await create_transaction_tool_obj.func( # Changed from .handler
             envelope_id=envelope_id,
             amount=50.0,
             description="Test grocery purchase",
@@ -122,13 +122,13 @@ class TestMCPTools:
     async def test_get_budget_summary_tool(self, server):
         """Test the get_budget_summary MCP tool."""
         # Get the tool functions from server
-        tools = {tool.name: tool for tool in server._tools}
-        create_envelope_tool = tools['create_envelope']
-        create_transaction_tool = tools['create_transaction']
-        get_budget_summary_tool = tools['get_budget_summary']
+        tools = {tool.name: tool for tool in server.tools} # Changed from server._tools
+        create_envelope_tool_obj = tools['create_envelope']
+        create_transaction_tool_obj = tools['create_transaction']
+        get_budget_summary_tool_obj = tools['get_budget_summary']
         
         # Create test data
-        envelope_result = await create_envelope_tool.handler(
+        envelope_result = await create_envelope_tool_obj.func( # Changed from .handler
             category="Summary Test",
             budgeted_amount=1000.0,
             starting_balance=800.0,
@@ -138,7 +138,7 @@ class TestMCPTools:
         envelope_id = envelope_data['id']
         
         # Add a transaction
-        await create_transaction_tool.handler(
+        await create_transaction_tool_obj.func( # Changed from .handler
             envelope_id=envelope_id,
             amount=150.0,
             description="Test expense",
@@ -147,7 +147,7 @@ class TestMCPTools:
         )
         
         # Test getting budget summary
-        result = await get_budget_summary_tool.handler()
+        result = await get_budget_summary_tool_obj.func() # Changed from .handler
         
         assert len(result) == 1
         assert result[0].type == "text"
@@ -162,17 +162,17 @@ class TestMCPTools:
         assert budget_summary['total_budgeted_amount'] >= 1000.0
         assert budget_summary['total_starting_balance'] >= 800.0
         assert 'total_current_balance' in budget_summary
-        assert 'total_spent' in budget_summary
+        assert 'total_spent_from_starting_balance' in budget_summary # Updated key name
     
     @pytest.mark.asyncio
     async def test_error_handling(self, server):
         """Test error handling in MCP tools."""
         # Get the tool function from server
-        tools = {tool.name: tool for tool in server._tools}
-        create_envelope_tool = tools['create_envelope']
+        tools = {tool.name: tool for tool in server.tools} # Changed from server._tools
+        create_envelope_tool_obj = tools['create_envelope']
         
         # Test creating envelope with invalid data
-        result = await create_envelope_tool.handler(
+        result = await create_envelope_tool_obj.func( # Changed from .handler
             category="",  # Empty category should cause error
             budgeted_amount=100.0,
             starting_balance=50.0,
@@ -182,3 +182,49 @@ class TestMCPTools:
         assert len(result) == 1
         assert result[0].type == "text"
         assert "Error:" in result[0].text
+
+    @pytest.mark.asyncio
+    async def test_tool_schema_generation(self, server):
+        """Test the input schema generation for MCP tools."""
+        tools = {tool.name: tool for tool in server.tools}
+
+        # Test schema for create_envelope
+        create_envelope_tool = tools.get('create_envelope')
+        assert create_envelope_tool is not None
+        schema = create_envelope_tool.inputSchema
+        assert schema['type'] == 'object'
+        assert 'category' in schema['properties']
+        assert schema['properties']['category']['type'] == 'string'
+        assert "Name/category of the envelope (must be unique)" in schema['properties']['category']['description']
+        assert 'budgeted_amount' in schema['properties']
+        assert schema['properties']['budgeted_amount']['type'] == 'number'
+        assert "Planned budget amount for this envelope (must be positive)" in schema['properties']['budgeted_amount']['description']
+        assert 'starting_balance' in schema['properties']
+        assert schema['properties']['starting_balance']['type'] == 'number' # Optional[float] maps to number
+        assert "Initial balance for the envelope. Defaults to 0.0" in schema['properties']['starting_balance']['description']
+        assert 'description' in schema['properties']
+        assert schema['properties']['description']['type'] == 'string' # Optional[str] maps to string
+        assert "Optional description providing additional context" in schema['properties']['description']['description']
+        assert 'category' in schema['required']
+        assert 'budgeted_amount' in schema['required']
+        assert 'starting_balance' not in schema['required'] # Optional
+        assert 'description' not in schema['required'] # Optional
+
+        # Test schema for list_transactions (takes an optional parameter)
+        list_transactions_tool = tools.get('list_transactions')
+        assert list_transactions_tool is not None
+        schema = list_transactions_tool.inputSchema
+        assert schema['type'] == 'object'
+        assert 'envelope_id' in schema['properties']
+        assert schema['properties']['envelope_id']['type'] == 'integer' # Optional[int] maps to integer
+        assert "Optional envelope ID to filter transactions" in schema['properties']['envelope_id']['description']
+        assert 'envelope_id' not in schema.get('required', []) # Optional
+
+        # Test schema for get_envelope (takes a required parameter)
+        get_envelope_tool = tools.get('get_envelope')
+        assert get_envelope_tool is not None
+        schema = get_envelope_tool.inputSchema
+        assert 'envelope_id' in schema['properties']
+        assert schema['properties']['envelope_id']['type'] == 'integer'
+        assert "ID of the envelope to retrieve" in schema['properties']['envelope_id']['description']
+        assert 'envelope_id' in schema['required']

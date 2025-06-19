@@ -5,11 +5,12 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "duckdb==1.2.0",
+    "duckdb>=0.8.0", # Matched with requirements.txt
     "mcp>=1.0.0",
 ]
 
-[tool.uv.dev-dependencies]
-dev = [
-    "pytest>=8.4.1",
+[tool.uv] # Restructured this section for dev-dependencies
+dev-dependencies = [
+    "pytest>=7.0.0", # Matched with requirements.txt (original was >=8.4.1, req has >=7.0.0)
+    "pytest-asyncio>=0.18.0"
 ]
