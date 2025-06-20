@@ -6,31 +6,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Budget Cash Envelope MCP Server built with Python and DuckDB. It implements a cash envelope budgeting system where AI assistants can create budget envelopes (categories) and track income/expense transactions against them through MCP (Model Context Protocol) tools.
 
-## MCP Server Conversion Plan
+## MCP Server Implementation
 
-### Conversion Strategy
-This project is being converted from a Flask REST API to an MCP server while preserving:
+### Conversion Status
+✅ **COMPLETED**: This project has been successfully converted from a Flask REST API to an MCP server while preserving:
 - Existing business logic in services layer
 - Database architecture and models
 - SOLID principles and TDD approach
 - Validation and error handling
 
-### MCP Tools to Implement
-**Envelope Management:**
+### Implemented MCP Tools
+**Envelope Management:** ✅ All Complete
 - `create_envelope` - Create a new budget envelope
 - `list_envelopes` - Get all envelopes with current balances
 - `get_envelope` - Get specific envelope details by ID
 - `update_envelope` - Modify envelope properties
 - `delete_envelope` - Remove an envelope
 
-**Transaction Management:**
+**Transaction Management:** ✅ All Complete
 - `create_transaction` - Add income/expense transaction
 - `list_transactions` - Get transactions (optionally filtered by envelope)
 - `get_transaction` - Get specific transaction by ID
 - `update_transaction` - Modify transaction details
 - `delete_transaction` - Remove a transaction
 
-**Utility Tools:**
+**Utility Tools:** ✅ All Complete
 - `get_envelope_balance` - Get current balance for specific envelope
 - `get_budget_summary` - Get overall budget status
 
@@ -63,6 +63,11 @@ Install dependencies with:
 pip install -r requirements.txt
 ```
 
+**Alternative with uv (recommended):**
+```bash
+uv sync
+```
+
 **Note**: On systems with externally-managed Python environments (like Ubuntu/Debian), you may need to use:
 ```bash
 pip install --break-system-packages -r requirements.txt
@@ -72,6 +77,30 @@ Required packages:
 - mcp (>=1.0.0) - MCP server framework
 - DuckDB (>=0.8.0) - Database
 - pytest (>=7.0.0) - for testing
+- pytest-asyncio (>=0.18.0) - for async testing
+
+### Testing
+Run tests with:
+```bash
+pytest
+```
+
+**With uv:**
+```bash
+uv run pytest
+```
+
+**Run specific test categories:**
+```bash
+# Test database models
+pytest tests/test_models/
+
+# Test services
+pytest tests/test_services/
+
+# Test MCP tools
+pytest tests/test_mcp_tools.py
+```
 
 ## Architecture
 
@@ -80,12 +109,16 @@ The application follows MCP best practices with clear separation of concerns:
 
 - **app/models/database.py**: `Database` class handles all DuckDB interactions, table creation, and CRUD operations
 - **app/services/**: Business logic classes (`EnvelopeService`, `TransactionService`) with validation
-- **app/mcp/**: MCP tool definitions for envelope and transaction operations
+- **app/mcp/**: MCP tool definitions and centralized registration system
+  - **registry.py**: Centralized decorator-based tool registration system
+  - **envelope_tools.py**: Envelope management MCP tools
+  - **transaction_tools.py**: Transaction management MCP tools  
+  - **utility_tools.py**: Balance and summary MCP tools
 - **app/utils/**: Error handlers and utility functions
 - **app/config.py**: Configuration management for different environments
 - **app/__init__.py**: MCP server factory pattern
 - **run.py**: MCP server entry point
-- **tests/**: Test directories organized by component
+- **tests/**: Test directories organized by component with async test support
 
 ### Database Schema
 - **envelopes**: id, category (unique), budgeted_amount, starting_balance, description
@@ -100,10 +133,12 @@ The application follows MCP best practices with clear separation of concerns:
 MCP server runs in a controlled environment with tool-level access control through the MCP protocol.
 
 ### Key Design Patterns
-- Dependency Injection: Services receive Database instance in constructor
-- Single Responsibility: Each class has one clear purpose
-- Tool organization: Separate tool groups for envelopes and transactions
-- Structured error handling: Consistent error responses across all tools
+- **Dependency Injection**: Services receive Database instance in constructor
+- **Single Responsibility**: Each class has one clear purpose
+- **Centralized Tool Registration**: Decorator-based `@register` pattern for automatic tool discovery
+- **Tool Organization**: Separate tool classes for envelopes, transactions, and utilities
+- **Structured Error Handling**: Consistent error responses across all tools with proper exception handling
+- **Type Safety**: Full type hints with `Annotated` types for MCP tool parameter documentation
 
 ## MCP Tools
 
