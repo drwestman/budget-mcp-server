@@ -9,16 +9,19 @@ The [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) is an open 
 ## Features
 
 - **AI Agent Integration**: Designed for seamless integration with AI assistants via MCP
+- **Dual Transport Support**: FastMCP with Streamable HTTP transport + legacy stdio transport
+- **Web-Accessible**: HTTP endpoint for modern MCP clients and web integrations
 - **Cash Envelope Budgeting**: Create and manage budget categories with allocated amounts
 - **Transaction Management**: Track income and expense transactions against budget envelopes
 - **Real-time Balance Tracking**: Monitor current balances and budget summaries
 - **Lightweight Database**: Uses DuckDB for fast, embedded database operations
-- **Modern Python Tooling**: Built with uv for fast, reliable dependency management
+- **Modern Python Tooling**: Built with FastMCP and uv for fast, reliable development
 - **Docker Support**: Containerized deployment for development and production
 
 ## Tech Stack
 
 - **Runtime**: Python 3.12+
+- **MCP Framework**: FastMCP with Streamable HTTP transport
 - **Protocol**: Model Context Protocol (MCP)
 - **Database**: DuckDB
 - **Package Management**: uv
@@ -46,10 +49,12 @@ cd budget-mcp-server
 uv sync
 ```
 
-3. Run the MCP server:
+3. Run the FastMCP server:
 ```bash
 uv run python run.py
 ```
+
+The server will start with Streamable HTTP transport on `http://127.0.0.1:8000/mcp`
 
 ### Using pip (Alternative)
 
@@ -70,10 +75,12 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Run the MCP server:
+4. Run the FastMCP server:
 ```bash
 python run.py
 ```
+
+The server will start with Streamable HTTP transport on `http://127.0.0.1:8000/mcp`
 
 ### Docker Setup
 
@@ -89,9 +96,26 @@ docker-compose up -d
 
 ## Integration with AI Assistants
 
-This MCP server is designed to be integrated with AI assistants. Here's how to configure it:
+This MCP server supports both modern HTTP transport and legacy stdio transport for maximum compatibility.
 
-### Claude Desktop Integration
+### FastMCP HTTP Integration (Recommended)
+
+The server runs with Streamable HTTP transport by default, making it accessible via HTTP:
+
+```bash
+python run.py
+# Server available at: http://127.0.0.1:8000/mcp
+```
+
+**Environment Variables:**
+- `HOST`: Server host (default: 127.0.0.1)
+- `PORT`: Server port (default: 8000)  
+- `MCP_PATH`: MCP endpoint path (default: /mcp)
+- `APP_ENV`: Environment mode (development/production/testing)
+
+### Claude Desktop Integration (Legacy stdio)
+
+For Claude Desktop, use the stdio transport mode:
 
 Add the following to your Claude Desktop configuration file:
 
@@ -103,7 +127,7 @@ Add the following to your Claude Desktop configuration file:
   "mcpServers": {
     "budget-envelope": {
       "command": "uv",
-      "args": ["run", "python", "/path/to/budget-mcp-server/run.py"],
+      "args": ["run", "python", "/path/to/budget-mcp-server/run_stdio.py"],
       "cwd": "/path/to/budget-mcp-server"
     }
   }
@@ -112,7 +136,11 @@ Add the following to your Claude Desktop configuration file:
 
 ### Other MCP Clients
 
-The server communicates via stdio and can be integrated with any MCP-compatible client. Run the server and connect to its stdin/stdout streams.
+**HTTP Transport (Modern):**
+Connect to `http://127.0.0.1:8000/mcp` using any HTTP MCP client
+
+**stdio Transport (Legacy):**
+Run `run_stdio.py` and connect to its stdin/stdout streams
 
 ## Available MCP Tools
 
@@ -194,41 +222,62 @@ The AI will use the `get_budget_summary` tool to provide a comprehensive overvie
 ```
 budget-mcp-server/
 ├── app/
-│   ├── __init__.py          # MCP server factory
-│   ├── config.py            # Configuration management
-│   ├── mcp/                 # MCP tool implementations
-│   │   ├── envelope_tools.py     # Envelope management tools
-│   │   ├── transaction_tools.py  # Transaction management tools
-│   │   └── utility_tools.py      # Utility and summary tools
-│   ├── models/              # Data models
-│   │   └── database.py      # Database operations
-│   ├── services/            # Business logic
+│   ├── __init__.py              # Legacy MCP server factory
+│   ├── fastmcp_server.py        # FastMCP server with HTTP transport
+│   ├── config.py                # Configuration management
+│   ├── mcp/                     # Legacy MCP tool implementations
+│   │   ├── envelope_tools.py         # Envelope management tools (legacy)
+│   │   ├── transaction_tools.py      # Transaction management tools (legacy)
+│   │   └── utility_tools.py          # Utility and summary tools (legacy)
+│   ├── models/                  # Data models
+│   │   └── database.py          # Database operations
+│   ├── services/                # Business logic (shared)
 │   │   ├── envelope_service.py
 │   │   └── transaction_service.py
-│   └── utils/               # Utilities
-├── tests/                   # Test suite
-├── run.py                   # MCP server entry point
-├── pyproject.toml          # Project configuration (uv)
-├── requirements.txt        # Dependencies (pip fallback)
-├── uv.lock                 # Dependency lockfile (uv)
-├── Dockerfile              # Container definition
-└── docker-compose.yml     # Container orchestration
+│   └── utils/                   # Utilities
+├── tests/                       # Test suite
+│   ├── test_fastmcp_tools.py    # FastMCP transport tests
+│   ├── test_mcp_tools.py        # Legacy stdio transport tests
+│   └── [other test files]
+├── run.py                       # FastMCP server entry point (HTTP)
+├── run_stdio.py                 # Legacy MCP server entry point (stdio)
+├── pyproject.toml              # Project configuration (uv)
+├── requirements.txt            # Dependencies (pip fallback)
+├── uv.lock                     # Dependency lockfile (uv)
+├── Dockerfile                  # Container definition
+└── docker-compose.yml         # Container orchestration
 ```
 
 ### Running Tests
 
-With uv:
+**All tests:**
 ```bash
 uv run pytest
 ```
 
-With pip:
+**FastMCP tests (HTTP transport):**
+```bash
+uv run pytest tests/test_fastmcp_tools.py
+```
+
+**Legacy tests (stdio transport):**
+```bash
+uv run pytest tests/test_mcp_tools.py
+```
+
+**With pip:**
 ```bash
 pytest
 ```
 
 ### Environment Variables
 
+**Server Configuration:**
+- `HOST`: Server host for HTTP transport (default: 127.0.0.1)
+- `PORT`: Server port for HTTP transport (default: 8000)
+- `MCP_PATH`: MCP endpoint path (default: /mcp)
+
+**Application Configuration:**
 - `APP_ENV`: Set to 'production', 'development', or 'testing' (default: development)
 - `DATABASE_FILE`: Database file path (default: `./data/budget_app.duckdb`)
 
