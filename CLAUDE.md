@@ -38,11 +38,23 @@ This is a Budget Cash Envelope MCP Server built with Python and DuckDB. It imple
 
 ### Running the MCP Server
 
-#### Local Development
+#### FastMCP with Streamable HTTP Transport (Default)
 ```bash
 python3 run.py
 ```
-The MCP server starts and listens for MCP protocol connections. The database file `budget_app.duckdb` is automatically created and reset on each run during development.
+The FastMCP server starts with Streamable HTTP transport on `http://127.0.0.1:8000/mcp` by default. The database file `budget_app.duckdb` is automatically created and reset on each run during development.
+
+**Environment Variables:**
+- `HOST`: Server host (default: 127.0.0.1) - the address the server will bind to.
+- `PORT`: Server port (default: 8000) - the TCP port for HTTP transport.
+- `MCP_PATH`: MCP endpoint path (default: /mcp) - the HTTP path where the MCP endpoint is exposed.
+- `APP_ENV`: Environment mode (development/production/testing) - the application environment (development, production, or testing), affecting logging and database persistence.
+
+#### Legacy stdio Transport
+```bash
+python3 run_stdio.py
+```
+Runs the server with traditional stdio transport for backward compatibility with older MCP clients.
 
 #### Docker Development
 ```bash
@@ -58,14 +70,14 @@ docker run -v budget_data:/app/data budget-mcp-server
 ```
 
 ### Dependencies
-Install dependencies with:
-```bash
-pip install -r requirements.txt
-```
-
-**Alternative with uv (recommended):**
+Install dependencies with uv (recommended):
 ```bash
 uv sync
+```
+
+**Alternative with pip:**
+```bash
+pip install -r requirements.txt
 ```
 
 **Note**: On systems with externally-managed Python environments (like Ubuntu/Debian), you may need to use:
@@ -74,7 +86,7 @@ pip install --break-system-packages -r requirements.txt
 ```
 
 Required packages:
-- mcp (>=1.0.0) - MCP server framework
+- fastmcp (>=2.3.0) - FastMCP framework with Streamable HTTP transport
 - DuckDB (>=0.8.0) - Database
 - pytest (>=7.0.0) - for testing
 - pytest-asyncio (>=0.18.0) - for async testing
@@ -98,26 +110,40 @@ pytest tests/test_models/
 # Test services
 pytest tests/test_services/
 
-# Test MCP tools
+# Test FastMCP tools
+pytest tests/test_fastmcp_tools.py
+
+# Test legacy MCP tools (stdio transport)
 pytest tests/test_mcp_tools.py
 ```
 
 ## Architecture
 
 ### Modular MCP Server Architecture
-The application follows MCP best practices with clear separation of concerns:
+The application supports both modern FastMCP with Streamable HTTP transport and legacy stdio transport:
 
+**FastMCP Architecture (Primary):**
+- **app/fastmcp_server.py**: FastMCP server factory with @tool decorators and Streamable HTTP transport
+- **run.py**: FastMCP entry point with HTTP server
+- **tests/test_fastmcp_tools.py**: FastMCP-specific test suite
+
+**Core Business Logic (Shared):**
 - **app/models/database.py**: `Database` class handles all DuckDB interactions, table creation, and CRUD operations
 - **app/services/**: Business logic classes (`EnvelopeService`, `TransactionService`) with validation
-- **app/mcp/**: MCP tool definitions and centralized registration system
+- **app/config.py**: Configuration management for different environments
+
+**Legacy MCP Support (Backward Compatibility):**
+- **app/mcp/**: Legacy MCP tool definitions and centralized registration system
   - **registry.py**: Centralized decorator-based tool registration system
   - **envelope_tools.py**: Envelope management MCP tools
   - **transaction_tools.py**: Transaction management MCP tools  
   - **utility_tools.py**: Balance and summary MCP tools
+- **app/__init__.py**: Legacy MCP server factory pattern
+- **run_stdio.py**: Legacy stdio transport entry point
+- **tests/test_mcp_tools.py**: Legacy MCP test suite
+
+**Supporting Components:**
 - **app/utils/**: Error handlers and utility functions
-- **app/config.py**: Configuration management for different environments
-- **app/__init__.py**: MCP server factory pattern
-- **run.py**: MCP server entry point
 - **tests/**: Test directories organized by component with async test support
 
 ### Database Schema
@@ -161,8 +187,8 @@ MCP server runs in a controlled environment with tool-level access control throu
 - `get_budget_summary` - Get overall budget status and summary
 
 ## Key Configuration
-- `DATABASE_FILE`: DuckDB database file path - stores all budget data
-- `APP_ENV`: Set to 'production' or 'development' (controls database reset behavior)
+- `DATABASE_FILE`: Database file path (default: ./data/budget_app.duckdb) - the location of the DuckDB file used for persistent storage.
+- `APP_ENV`: Set to 'production', 'development', or 'testing' (default: development) - the application environment, affecting logging and database persistence.
 - Database is reset on each application start during development mode
 
 ## Docker Configuration
