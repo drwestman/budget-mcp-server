@@ -45,10 +45,10 @@ python3 run.py
 The FastMCP server starts with Streamable HTTP transport on `http://127.0.0.1:8000/mcp` by default. The database file `budget_app.duckdb` is automatically created and reset on each run during development.
 
 **Environment Variables:**
-- `HOST`: Server host (default: 127.0.0.1)
-- `PORT`: Server port (default: 8000)
-- `MCP_PATH`: MCP endpoint path (default: /mcp)
-- `APP_ENV`: Environment mode (development/production/testing)
+- `HOST`: Server host (default: 127.0.0.1) - the address the server will bind to.
+- `PORT`: Server port (default: 8000) - the TCP port for HTTP transport.
+- `MCP_PATH`: MCP endpoint path (default: /mcp) - the HTTP path where the MCP endpoint is exposed.
+- `APP_ENV`: Environment mode (development/production/testing) - the application environment (development, production, or testing), affecting logging and database persistence.
 
 #### Legacy stdio Transport
 ```bash
@@ -187,8 +187,8 @@ MCP server runs in a controlled environment with tool-level access control throu
 - `get_budget_summary` - Get overall budget status and summary
 
 ## Key Configuration
-- `DATABASE_FILE`: DuckDB database file path - stores all budget data
-- `APP_ENV`: Set to 'production' or 'development' (controls database reset behavior)
+- `DATABASE_FILE`: Database file path (default: ./data/budget_app.duckdb) - the location of the DuckDB file used for persistent storage.
+- `APP_ENV`: Set to 'production', 'development', or 'testing' (default: development) - the application environment, affecting logging and database persistence.
 - Database is reset on each application start during development mode
 
 ## Docker Configuration

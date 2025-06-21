@@ -108,10 +108,10 @@ python run.py
 ```
 
 **Environment Variables:**
-- `HOST`: Server host (default: 127.0.0.1)
-- `PORT`: Server port (default: 8000)  
-- `MCP_PATH`: MCP endpoint path (default: /mcp)
-- `APP_ENV`: Environment mode (development/production/testing)
+- `HOST`: Server host (default: 127.0.0.1) - the address the server will bind to.
+- `PORT`: Server port (default: 8000) - the TCP port for HTTP transport.
+- `MCP_PATH`: MCP endpoint path (default: /mcp) - the HTTP path where the MCP endpoint is exposed.
+- `APP_ENV`: Environment mode (development/production/testing) - the application environment (development, production, or testing), affecting logging and database persistence.
 
 ### Claude Desktop Integration (Legacy stdio)
 
@@ -273,13 +273,13 @@ pytest
 ### Environment Variables
 
 **Server Configuration:**
-- `HOST`: Server host for HTTP transport (default: 127.0.0.1)
-- `PORT`: Server port for HTTP transport (default: 8000)
-- `MCP_PATH`: MCP endpoint path (default: /mcp)
+- `HOST`: Server host for HTTP transport (default: 127.0.0.1) - the address the server will bind to.
+- `PORT`: Server port for HTTP transport (default: 8000) - the TCP port for HTTP transport.
+- `MCP_PATH`: MCP endpoint path (default: /mcp) - the HTTP path where the MCP endpoint is exposed.
 
 **Application Configuration:**
-- `APP_ENV`: Set to 'production', 'development', or 'testing' (default: development)
-- `DATABASE_FILE`: Database file path (default: `./data/budget_app.duckdb`)
+- `APP_ENV`: Set to 'production', 'development', or 'testing' (default: development) - the application environment, affecting logging and database persistence.
+- `DATABASE_FILE`: Database file path (default: `./data/budget_app.duckdb`) - the location of the DuckDB file used for persistent storage.
 
 ### Configuration
 
