@@ -11,4 +11,4 @@ It uses a cash envelope system.
 - pytest for unit tests
 - SOLID principles
 - TDD techniques
-- Use docker to containerize the application for development and production.
+- Use docker and docker compose to containerize the application for development and production
