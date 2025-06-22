@@ -68,12 +68,24 @@ class EnvelopeService:
         if not self.db.get_envelope_by_id(envelope_id):
             raise ValueError(f"Envelope with ID {envelope_id} not found.")
         self.db.delete_envelope(envelope_id)
-        return {"message": f"Envelope with ID {envelope_id} deleted successfully."}
-
-    def get_envelope_balance(self, envelope_id):
+        return {"message": f"Envelope with ID {envelope_id} deleted successfully."
+                
     def get_envelope_balance(self, envelope_id):
         """Gets the current balance for a specific envelope.
         
         Returns:
             A dictionary containing the envelope ID, category, current balance, starting balance, and budgeted amount.
         """
+        if not self.db.get_envelope_by_id(envelope_id):
+            raise ValueError(f"Envelope with ID {envelope_id} not found.")
+        
+        current_balance = self.db.get_envelope_current_balance(envelope_id)
+        envelope = self.db.get_envelope_by_id(envelope_id)
+        
+        return {
+            "envelope_id": envelope_id,
+            "category": envelope['category'],
+            "current_balance": current_balance,
+            "starting_balance": envelope['starting_balance'],
+            "budgeted_amount": envelope['budgeted_amount']
+        }
