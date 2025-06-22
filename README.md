@@ -127,7 +127,7 @@ Add the following to your Claude Desktop configuration file:
   "mcpServers": {
     "budget-envelope": {
       "command": "uv",
-      "args": ["run", "python", "/path/to/budget-mcp-server/run_stdio.py"],
+      "args": ["run", "python", "${PWD}/run_stdio.py"],
       "cwd": "/path/to/budget-mcp-server"
     }
   }
