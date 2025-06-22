@@ -15,7 +15,7 @@ The [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) is an open 
 - **Transaction Management**: Track income and expense transactions against budget envelopes
 - **Real-time Balance Tracking**: Monitor current balances and budget summaries
 - **Lightweight Database**: Uses DuckDB for fast, embedded database operations
-- **Modern Python Tooling**: Built with FastMCP and uv for fast, reliable development
+- **Modern Python Tooling**: Built with FastMCP (>=2.3.0) and uv for fast, reliable development
 - **Docker Support**: Containerized deployment for development and production
 
 ## Tech Stack
