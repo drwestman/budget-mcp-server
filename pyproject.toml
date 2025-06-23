@@ -7,10 +7,14 @@ requires-python = ">=3.12"
 dependencies = [
     "duckdb>=0.8.0", # Matched with requirements.txt
     "fastmcp>=2.3.0",
+    "mcp>=1.9.4",
 ]
 
-[tool.uv] # Restructured this section for dev-dependencies
+[tool.uv]
 dev-dependencies = [
     "pytest>=7.0.0", # Matched with requirements.txt (original was >=8.4.1, req has >=7.0.0)
     "pytest-asyncio>=0.18.0"
 ]
+
+[tool.setuptools.packages.find]
+include = ["app*"]

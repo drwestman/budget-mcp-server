@@ -194,7 +194,7 @@ MCP server runs in a controlled environment with tool-level access control throu
 ## Docker Configuration
 
 ### Container Files
-- **Dockerfile**: Multi-stage Python 3.11-slim build optimized for MCP server
+- **Dockerfile**: Multi-stage Python 3.12-slim build optimized for MCP server
 - **.dockerignore**: Excludes development files, cache, and virtual environments
 - **docker-compose.yml**: Production and development service configurations
 

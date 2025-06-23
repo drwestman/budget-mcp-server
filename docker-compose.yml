@@ -6,6 +6,11 @@ services:
     environment:
       - APP_ENV=production
       - DATABASE_FILE=/app/data/budget_app.duckdb
+      - HOST=0.0.0.0
+      - PORT=8000
+      - MCP_PATH=/mcp
+    ports:
+      - "8000:8000"
     volumes:
       - budget_data:/app/data
     restart: unless-stopped
@@ -15,6 +20,11 @@ services:
     environment:
       - APP_ENV=development
       - DATABASE_FILE=/app/data/budget_app.duckdb
+      - HOST=0.0.0.0
+      - PORT=8000
+      - MCP_PATH=/mcp
+    ports:
+      - "8000:8000"
     volumes:
       - budget_data:/app/data
       - .:/app

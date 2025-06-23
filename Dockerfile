@@ -1,16 +1,22 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+# Copy dependency files first for better layer caching
+COPY pyproject.toml uv.lock ./
 
-RUN pip install --no-cache-dir -r requirements.txt
+# Install uv and dependencies in one optimized layer
+RUN pip install --no-cache-dir uv && \
+    uv sync --no-dev --locked && \
+    rm -rf ~/.cache/uv
 
-COPY . .
+# Copy application code
+COPY app/ ./app/
+COPY run.py ./
 
 ENV APP_ENV=production
 
 # Create volume mount point for data persistence
 VOLUME ["/app/data"]
 
-CMD ["python3", "run.py"]
+CMD ["uv", "run", "python3", "run.py"]
