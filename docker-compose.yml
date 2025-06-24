@@ -1,6 +1,8 @@
 services:
   budget-mcp-server:
     build: .
+    image: budget-mcp-server:latest
+    container_name: budget-mcp-server
     profiles:
       - prod
     environment:
@@ -14,9 +16,13 @@ services:
     volumes:
       - budget_data:/app/data
     restart: unless-stopped
+    networks:
+      - default
 
   budget-mcp-server-dev:
     build: .
+    image: budget-mcp-server:dev
+    container_name: budget-mcp-server-dev
     environment:
       - APP_ENV=development
       - DATABASE_FILE=/app/data/budget_app.duckdb
@@ -31,6 +37,12 @@ services:
     profiles:
       - dev
     restart: unless-stopped
+    networks:
+      - default
 
 volumes:
   budget_data:
+
+networks:
+  default:
+    name: budget-mcp-server_default
