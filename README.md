@@ -86,12 +86,12 @@ The server will start with Streamable HTTP transport on `http://127.0.0.1:8000/m
 
 #### Development Mode (Default)
 ```bash
-docker-compose up
+docker compose up -d --build
 ```
 
 #### Production Mode
 ```bash
-docker-compose --profile prod up -d
+docker compose --profile prod up -d --build
 ```
 
 ## Integration with AI Assistants
