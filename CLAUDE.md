@@ -58,11 +58,11 @@ Runs the server with traditional stdio transport for backward compatibility with
 
 #### Docker Development
 ```bash
-# Production mode
-docker-compose up -d
+# Development mode (default)
+docker-compose up
 
-# Development mode with code mounting
-docker-compose --profile dev up
+# Production mode
+docker-compose --profile prod up -d
 
 # Manual Docker build and run
 docker build -t budget-mcp-server .
