@@ -34,8 +34,6 @@ services:
     volumes:
       - budget_data:/app/data
       - .:/app
-    profiles:
-      - dev
     restart: unless-stopped
     networks:
       - default

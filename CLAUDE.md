@@ -58,11 +58,11 @@ Runs the server with traditional stdio transport for backward compatibility with
 
 #### Docker Development
 ```bash
-# Production mode
-docker-compose up -d
+# Development mode (default)
+docker compose up -d --build
 
-# Development mode with code mounting
-docker-compose --profile dev up
+# Production mode
+docker compose --profile prod up -d
 
 # Manual Docker build and run
 docker build -t budget-mcp-server .
@@ -86,7 +86,8 @@ pip install --break-system-packages -r requirements.txt
 ```
 
 Required packages:
-- fastmcp (>=2.3.0) - FastMCP framework with Streamable HTTP transport
+- mcp (=>1.0.0) - MCP Server for STDIO transport
+- fastmcp (>=2.9.0) - FastMCP framework with Streamable HTTP transport
 - DuckDB (>=0.8.0) - Database
 - pytest (>=7.0.0) - for testing
 - pytest-asyncio (>=0.18.0) - for async testing
