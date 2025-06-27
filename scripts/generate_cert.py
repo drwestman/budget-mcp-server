@@ -60,7 +60,9 @@ def generate_self_signed_cert(cert_dir="certs", days=365):
         
     except subprocess.CalledProcessError as e:
         print(f"Error generating certificate: {e}")
-        print("Make sure OpenSSL is installed on your system")
+        if e.stderr:
+            print(f"OpenSSL Error: {e.stderr.decode().strip()}")
+        print("Make sure OpenSSL is installed on your system.")
         sys.exit(1)
     except FileNotFoundError:
         print("Error: OpenSSL not found. Please install OpenSSL:")

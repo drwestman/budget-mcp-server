@@ -5,6 +5,7 @@ Run this file to start the FastMCP server with Streamable HTTP transport.
 """
 import os
 import ssl
+import sys
 import uvicorn
 from app.fastmcp_server import create_fastmcp_server
 
@@ -85,7 +86,7 @@ def main():
             print(f"Expected cert file: {ssl_cert_file}")
             print(f"Expected key file: {ssl_key_file}")
             print(f"Run 'python scripts/generate_cert.py' to generate self-signed certificates")
-            return
+            sys.exit(1)
         protocol = "https"
         print(f"HTTPS Mode: Enabled")
         print(f"SSL Certificate: {ssl_cert_file}")
