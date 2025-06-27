@@ -13,10 +13,17 @@ RUN pip install --no-cache-dir uv && \
 # Copy application code
 COPY app/ ./app/
 COPY run.py ./
+COPY scripts/ ./scripts/
 
 ENV APP_ENV=production
 
-# Create volume mount point for data persistence
-VOLUME ["/app/data"]
+# Install OpenSSL for certificate generation
+RUN apt-get update && \
+    apt-get install -y openssl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create volume mount points for data and certificates
+VOLUME ["/app/data", "/app/certs"]
 
 CMD ["uv", "run", "python3", "run.py"]
