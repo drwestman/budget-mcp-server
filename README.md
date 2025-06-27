@@ -16,6 +16,7 @@ The [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) is an open 
 - **Real-time Balance Tracking**: Monitor current balances and budget summaries
 - **Lightweight Database**: Uses DuckDB for fast, embedded database operations
 - **Modern Python Tooling**: Built with FastMCP (>=2.3.0) and uv for fast, reliable development
+- **HTTPS Support**: Optional SSL/TLS encryption with self-signed certificates for development
 - **Docker Support**: Containerized deployment for development and production
 
 ## Tech Stack
@@ -55,6 +56,24 @@ uv run python run.py
 ```
 
 The server will start with Streamable HTTP transport on `http://127.0.0.1:8000/mcp`
+
+### HTTPS Setup (Optional)
+
+For secure connections, you can enable HTTPS with self-signed certificates:
+
+1. **Generate certificates:**
+```bash
+uv run python scripts/generate_cert.py
+```
+
+2. **Run with HTTPS:**
+```bash
+HTTPS_ENABLED=true uv run python run.py
+```
+
+The server will be available at `https://127.0.0.1:8000/mcp`
+
+See [HTTPS_SETUP.md](HTTPS_SETUP.md) for detailed HTTPS configuration instructions.
 
 ### Using pip (Alternative)
 
@@ -112,6 +131,9 @@ python run.py
 - `PORT`: Server port (default: 8000) - the TCP port for HTTP transport.
 - `MCP_PATH`: MCP endpoint path (default: /mcp) - the HTTP path where the MCP endpoint is exposed.
 - `APP_ENV`: Environment mode (development/production/testing) - the application environment (development, production, or testing), affecting logging and database persistence.
+- `HTTPS_ENABLED`: Enable HTTPS mode (default: false) - set to 'true' to enable SSL/TLS encryption.
+- `SSL_CERT_FILE`: Path to SSL certificate file (default: certs/server.crt) - PEM format certificate file.
+- `SSL_KEY_FILE`: Path to SSL private key file (default: certs/server.key) - PEM format private key file.
 
 ### Claude Desktop Integration (Legacy stdio)
 
@@ -138,6 +160,9 @@ Add the following to your Claude Desktop configuration file:
 
 **HTTP Transport (Modern):**
 Connect to `http://127.0.0.1:8000/mcp` using any HTTP MCP client
+
+**HTTPS Transport (Secure):**
+Connect to `https://127.0.0.1:8000/mcp` when HTTPS is enabled (requires certificate configuration)
 
 **stdio Transport (Legacy):**
 Run `run_stdio.py` and connect to its stdin/stdout streams
@@ -224,7 +249,7 @@ budget-mcp-server/
 ├── app/
 │   ├── __init__.py              # Legacy MCP server factory
 │   ├── fastmcp_server.py        # FastMCP server with HTTP transport
-│   ├── config.py                # Configuration management
+│   ├── config.py                # Configuration management (includes HTTPS settings)
 │   ├── mcp/                     # Legacy MCP tool implementations
 │   │   ├── envelope_tools.py         # Envelope management tools (legacy)
 │   │   ├── transaction_tools.py      # Transaction management tools (legacy)
@@ -235,17 +260,20 @@ budget-mcp-server/
 │   │   ├── envelope_service.py
 │   │   └── transaction_service.py
 │   └── utils/                   # Utilities
+├── scripts/                     # Utility scripts
+│   └── generate_cert.py         # SSL certificate generation for HTTPS
 ├── tests/                       # Test suite
 │   ├── test_fastmcp_tools.py    # FastMCP transport tests
 │   ├── test_mcp_tools.py        # Legacy stdio transport tests
 │   └── [other test files]
-├── run.py                       # FastMCP server entry point (HTTP)
+├── run.py                       # FastMCP server entry point (HTTP/HTTPS)
 ├── run_stdio.py                 # Legacy MCP server entry point (stdio)
+├── HTTPS_SETUP.md              # Detailed HTTPS configuration guide
 ├── pyproject.toml              # Project configuration (uv)
 ├── requirements.txt            # Dependencies (pip fallback)
 ├── uv.lock                     # Dependency lockfile (uv)
-├── Dockerfile                  # Container definition
-└── docker-compose.yml         # Container orchestration
+├── Dockerfile                  # Container definition (includes OpenSSL)
+└── docker-compose.yml         # Container orchestration (includes HTTPS volumes)
 ```
 
 ### Running Tests
@@ -280,6 +308,11 @@ pytest
 **Application Configuration:**
 - `APP_ENV`: Set to 'production', 'development', or 'testing' (default: development) - the application environment, affecting logging and database persistence.
 - `DATABASE_FILE`: Database file path (default: `./data/budget_app.duckdb`) - the location of the DuckDB file used for persistent storage.
+
+**HTTPS Configuration:**
+- `HTTPS_ENABLED`: Enable HTTPS mode (default: false) - set to 'true' to enable SSL/TLS encryption.
+- `SSL_CERT_FILE`: Path to SSL certificate file (default: certs/server.crt) - PEM format certificate file.
+- `SSL_KEY_FILE`: Path to SSL private key file (default: certs/server.key) - PEM format private key file.
 
 ### Configuration
 

@@ -44,11 +44,24 @@ python3 run.py
 ```
 The FastMCP server starts with Streamable HTTP transport on `http://127.0.0.1:8000/mcp` by default. The database file `budget_app.duckdb` is automatically created and reset on each run during development.
 
+#### FastMCP with HTTPS Support ✅ **NEW**
+```bash
+# Generate self-signed certificates for development
+python3 scripts/generate_cert.py
+
+# Run with HTTPS enabled
+HTTPS_ENABLED=true python3 run.py
+```
+The server will be accessible at `https://127.0.0.1:8000/mcp` with SSL/TLS encryption. Self-signed certificates will show browser security warnings in development.
+
 **Environment Variables:**
 - `HOST`: Server host (default: 127.0.0.1) - the address the server will bind to.
 - `PORT`: Server port (default: 8000) - the TCP port for HTTP transport.
 - `MCP_PATH`: MCP endpoint path (default: /mcp) - the HTTP path where the MCP endpoint is exposed.
 - `APP_ENV`: Environment mode (development/production/testing) - the application environment (development, production, or testing), affecting logging and database persistence.
+- `HTTPS_ENABLED`: Enable HTTPS mode (default: false) - set to 'true' to enable SSL/TLS encryption.
+- `SSL_CERT_FILE`: Path to SSL certificate file (default: certs/server.crt) - PEM format certificate file.
+- `SSL_KEY_FILE`: Path to SSL private key file (default: certs/server.key) - PEM format private key file.
 
 #### Legacy stdio Transport
 ```bash
@@ -67,6 +80,17 @@ docker compose --profile prod up -d
 # Manual Docker build and run
 docker build -t budget-mcp-server .
 docker run -v budget_data:/app/data budget-mcp-server
+```
+
+#### Docker with HTTPS ✅ **NEW**
+```bash
+# Generate certificates for Docker
+python3 scripts/generate_cert.py
+
+# Run development with HTTPS
+HTTPS_ENABLED=true PORT=8443 docker compose up -d --build
+
+# Access at: https://localhost:8443/mcp
 ```
 
 ### Dependencies
@@ -88,9 +112,13 @@ pip install --break-system-packages -r requirements.txt
 Required packages:
 - mcp (=>1.0.0) - MCP Server for STDIO transport
 - fastmcp (>=2.9.0) - FastMCP framework with Streamable HTTP transport
+- uvicorn - ASGI server with SSL support for HTTPS functionality
 - DuckDB (>=0.8.0) - Database
 - pytest (>=7.0.0) - for testing
 - pytest-asyncio (>=0.18.0) - for async testing
+
+**Additional system dependencies for HTTPS:**
+- OpenSSL - Required for SSL certificate generation and validation
 
 ### Testing
 Run tests with:
@@ -125,13 +153,14 @@ The application supports both modern FastMCP with Streamable HTTP transport and 
 
 **FastMCP Architecture (Primary):**
 - **app/fastmcp_server.py**: FastMCP server factory with @tool decorators and Streamable HTTP transport
-- **run.py**: FastMCP entry point with HTTP server
+- **run.py**: FastMCP entry point with HTTP/HTTPS server (includes custom HTTPS implementation)
+- **scripts/generate_cert.py**: SSL certificate generation utility for HTTPS support
 - **tests/test_fastmcp_tools.py**: FastMCP-specific test suite
 
 **Core Business Logic (Shared):**
 - **app/models/database.py**: `Database` class handles all DuckDB interactions, table creation, and CRUD operations
 - **app/services/**: Business logic classes (`EnvelopeService`, `TransactionService`) with validation
-- **app/config.py**: Configuration management for different environments
+- **app/config.py**: Configuration management for different environments (includes HTTPS settings)
 
 **Legacy MCP Support (Backward Compatibility):**
 - **app/mcp/**: Legacy MCP tool definitions and centralized registration system
@@ -188,22 +217,51 @@ MCP server runs in a controlled environment with tool-level access control throu
 - `get_budget_summary` - Get overall budget status and summary
 
 ## Key Configuration
+
+### Core Configuration
 - `DATABASE_FILE`: Database file path (default: ./data/budget_app.duckdb) - the location of the DuckDB file used for persistent storage.
 - `APP_ENV`: Set to 'production', 'development', or 'testing' (default: development) - the application environment, affecting logging and database persistence.
 - Database is reset on each application start during development mode
 
+### HTTPS Configuration ✅ **NEW**
+- `HTTPS_ENABLED`: Enable HTTPS mode (default: false) - set to 'true' to enable SSL/TLS encryption.
+- `SSL_CERT_FILE`: Path to SSL certificate file (default: certs/server.crt) - PEM format certificate file.
+- `SSL_KEY_FILE`: Path to SSL private key file (default: certs/server.key) - PEM format private key file.
+
+**HTTPS Implementation Details:**
+- Uses custom Uvicorn server with SSL context for HTTPS mode
+- Automatic fallback to standard FastMCP HTTP server when HTTPS is disabled
+- Certificate validation with helpful error messages
+- Self-signed certificate generation script included
+
 ## Docker Configuration
 
 ### Container Files
-- **Dockerfile**: Multi-stage Python 3.12-slim build optimized for MCP server
+- **Dockerfile**: Multi-stage Python 3.12-slim build optimized for MCP server (includes OpenSSL for HTTPS)
 - **.dockerignore**: Excludes development files, cache, and virtual environments
-- **docker-compose.yml**: Production and development service configurations
+- **docker-compose.yml**: Production and development service configurations (includes HTTPS support)
 
 ### Environment Variables
 - `APP_ENV`: Set to 'production' or 'development' (default: development)
 - `DATABASE_FILE`: Database file path (default: /app/data/budget_app.duckdb in containers)
+- `HTTPS_ENABLED`: Enable HTTPS mode (default: false) 
+- `SSL_CERT_FILE`: SSL certificate path (default: /app/certs/server.crt in containers)
+- `SSL_KEY_FILE`: SSL key path (default: /app/certs/server.key in containers)
 
 ### Data Persistence
 - Database files are stored in Docker volume `budget_data` mounted at `/app/data`
-- Volume ensures data persistence between container restarts
+- SSL certificates are stored in Docker volume `budget_certs` mounted at `/app/certs`
+- Volumes ensure data and certificate persistence between container restarts
 - Production mode (`APP_ENV=production`) disables database reset on startup
+
+### HTTPS Docker Setup ✅ **NEW**
+```bash
+# Generate certificates on host
+python3 scripts/generate_cert.py
+
+# Copy certificates to Docker volume
+docker run --rm -v budget_certs:/certs -v $(pwd)/certs:/host-certs alpine cp -r /host-certs/. /certs/
+
+# Run with HTTPS enabled
+HTTPS_ENABLED=true PORT=8443 docker compose up -d
+```

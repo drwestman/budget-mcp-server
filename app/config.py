@@ -5,6 +5,11 @@ class Config:
     """Base configuration class."""
     DATABASE_FILE = os.getenv('DATABASE_FILE', 'budget_app.duckdb')
     
+    # HTTPS Configuration
+    HTTPS_ENABLED = os.getenv('HTTPS_ENABLED', 'false').lower() == 'true'
+    SSL_CERT_FILE = os.getenv('SSL_CERT_FILE', 'certs/server.crt')
+    SSL_KEY_FILE = os.getenv('SSL_KEY_FILE', 'certs/server.key')
+    
     @staticmethod
     def ensure_data_directory():
         """Ensure the data directory exists for database file."""
