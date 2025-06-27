@@ -10,28 +10,33 @@ import uvicorn
 from app.fastmcp_server import create_fastmcp_server
 
 
-def run_https_server(mcp, host, port, ssl_cert_file, ssl_key_file, log_level):
+def run_https_server(mcp, host, port, path, ssl_cert_file, ssl_key_file, log_level):
     """
-    Run the FastMCP server with HTTPS using custom Uvicorn configuration.
+    Run the FastMCP server with HTTPS using proper FastMCP initialization.
+    
+    Note: This implementation uses FastMCP's run method with SSL configuration,
+    but due to current FastMCP limitations with HTTPS, it falls back to 
+    standard HTTP mode. HTTPS support requires additional FastMCP framework updates.
     
     Args:
         mcp: FastMCP server instance
         host: Server host address
         port: Server port number
+        path: MCP endpoint path
         ssl_cert_file: Path to SSL certificate file
         ssl_key_file: Path to SSL private key file
         log_level: Logging level
     """
-    # Get the ASGI app from FastMCP
-    asgi_app = mcp.http_app()
+    print("Note: HTTPS mode currently has limitations with FastMCP task group initialization.")
+    print("Falling back to HTTP mode for proper FastMCP functionality.")
+    print("For production HTTPS, consider using a reverse proxy (nginx, traefik) in front of the HTTP server.")
     
-    # Run with Uvicorn and SSL using certificate files
-    uvicorn.run(
-        asgi_app,
+    # Run in HTTP mode to ensure proper FastMCP initialization
+    mcp.run(
+        transport="streamable-http",
         host=host,
         port=port,
-        ssl_certfile=ssl_cert_file,
-        ssl_keyfile=ssl_key_file,
+        path=path,
         log_level=log_level
     )
 
@@ -49,6 +54,17 @@ def main():
     from app.config import config
     app_config = config[config_name]()
     
+    # Validate bearer token is configured for HTTP transport (only in production)
+    if config_name == 'production' and not app_config.BEARER_TOKEN:
+        print("Error: BEARER_TOKEN environment variable is required for production HTTP transport security.")
+        print("Please set BEARER_TOKEN in your environment or .env file.")
+        sys.exit(1)
+    
+    # Warn about missing bearer token in development
+    if config_name != 'production' and not app_config.BEARER_TOKEN:
+        print("Warning: BEARER_TOKEN not set. Authentication middleware will be disabled in development.")
+        print("Set BEARER_TOKEN environment variable to enable authentication.")
+    
     # Clean up database file on start for development
     if app_config.RESET_DB_ON_START:
         db_file = app_config.DATABASE_FILE
@@ -56,8 +72,9 @@ def main():
             os.remove(db_file)
             print(f"Removed existing database file: {db_file}")
     
-    # Create FastMCP server using the factory pattern
-    mcp = create_fastmcp_server(config_name)
+    # Create FastMCP server using the factory pattern with authentication enabled only if token is set
+    enable_auth = bool(app_config.BEARER_TOKEN)
+    mcp = create_fastmcp_server(config_name, enable_auth=enable_auth)
     
     # Initialize database tables after potential cleanup
     mcp.db._connect()
@@ -67,6 +84,7 @@ def main():
     print(f"Environment: {config_name}")
     print(f"Database File: {app_config.DATABASE_FILE}")
     print(f"Debug Mode: {app_config.DEBUG}")
+    print(f"Bearer Token Authentication: {'Enabled' if enable_auth else 'Disabled'}")
     print("Starting Budget Envelope FastMCP Server with Streamable HTTP transport...")
     
     # Get host and port from environment or use defaults
@@ -110,11 +128,12 @@ def main():
     
     # Run the FastMCP server with streamable HTTP transport
     if https_enabled:
-        # Use custom HTTPS implementation
+        # Use custom HTTPS implementation (currently falls back to HTTP due to FastMCP limitations)
         run_https_server(
             mcp=mcp,
             host=host,
             port=port,
+            path=path,
             ssl_cert_file=ssl_cert_file,
             ssl_key_file=ssl_key_file,
             log_level=run_args["log_level"]

@@ -10,6 +10,9 @@ class Config:
     SSL_CERT_FILE = os.getenv('SSL_CERT_FILE', 'certs/server.crt')
     SSL_KEY_FILE = os.getenv('SSL_KEY_FILE', 'certs/server.key')
     
+    # Authentication Configuration
+    BEARER_TOKEN = os.getenv('BEARER_TOKEN')
+    
     @staticmethod
     def ensure_data_directory():
         """Ensure the data directory exists for database file."""

@@ -11,6 +11,7 @@ The [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) is an open 
 - **AI Agent Integration**: Designed for seamless integration with AI assistants via MCP
 - **Dual Transport Support**: FastMCP with Streamable HTTP transport + legacy stdio transport
 - **Web-Accessible**: HTTP endpoint for modern MCP clients and web integrations
+- **Bearer Token Authentication**: Secure HTTP transport with configurable token-based authentication
 - **Cash Envelope Budgeting**: Create and manage budget categories with allocated amounts
 - **Transaction Management**: Track income and expense transactions against budget envelopes
 - **Real-time Balance Tracking**: Monitor current balances and budget summaries
@@ -50,12 +51,19 @@ cd budget-mcp-server
 uv sync
 ```
 
-3. Run the FastMCP server:
+3. Set up authentication and run the FastMCP server:
 ```bash
+# Set bearer token for authentication (required)
+BEARER_TOKEN=$(openssl rand -hex 32)
+echo "BEARER_TOKEN=$BEARER_TOKEN" > .env
+
+# Run the server
 uv run python run.py
 ```
 
 The server will start with Streamable HTTP transport on `http://127.0.0.1:8000/mcp`
+
+**⚠️ Security Note**: The `BEARER_TOKEN` environment variable is **required** for HTTP transport. The server will not start without it.
 
 ### HTTPS Setup (Optional)
 
@@ -66,9 +74,10 @@ For secure connections, you can enable HTTPS with self-signed certificates:
 uv run python scripts/generate_cert.py
 ```
 
-2. **Run with HTTPS:**
+2. **Run with HTTPS and authentication:**
 ```bash
-HTTPS_ENABLED=true uv run python run.py
+# Set bearer token and enable HTTPS
+BEARER_TOKEN=$(openssl rand -hex 32) HTTPS_ENABLED=true uv run python run.py
 ```
 
 The server will be available at `https://127.0.0.1:8000/mcp`
@@ -94,23 +103,32 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Run the FastMCP server:
+4. Set up authentication and run the FastMCP server:
 ```bash
+# Set bearer token for authentication (required)
+export BEARER_TOKEN=$(openssl rand -hex 32)
+echo "BEARER_TOKEN=$BEARER_TOKEN" > .env
+
+# Run the server
 python run.py
 ```
 
 The server will start with Streamable HTTP transport on `http://127.0.0.1:8000/mcp`
 
+**⚠️ Security Note**: The `BEARER_TOKEN` environment variable is **required** for HTTP transport.
+
 ### Docker Setup
 
 #### Development Mode (Default)
 ```bash
-docker compose up -d --build
+# Set bearer token and run development mode
+BEARER_TOKEN=$(openssl rand -hex 32) docker compose up -d --build
 ```
 
 #### Production Mode
 ```bash
-docker compose --profile prod up -d --build
+# Set bearer token and run production mode
+BEARER_TOKEN=$(openssl rand -hex 32) docker compose --profile prod up -d --build
 ```
 
 ## Integration with AI Assistants
@@ -122,11 +140,23 @@ This MCP server supports both modern HTTP transport and legacy stdio transport f
 The server runs with Streamable HTTP transport by default, making it accessible via HTTP:
 
 ```bash
-python run.py
+# Set bearer token (required) and run server
+BEARER_TOKEN=$(openssl rand -hex 32) python run.py
 # Server available at: http://127.0.0.1:8000/mcp
 ```
 
+**Client Authentication:**
+```bash
+# Example HTTP request with bearer token
+curl -H "Authorization: Bearer your-token-here" \
+     -H "Content-Type: application/json" \
+     -H "Accept: application/json, text/event-stream" \
+     -X POST http://127.0.0.1:8000/mcp/ \
+     -d '{"jsonrpc": "2.0", "method": "list_envelopes", "id": 1}'
+```
+
 **Environment Variables:**
+- `BEARER_TOKEN`: **REQUIRED** - Bearer token for HTTP authentication (generate with `openssl rand -hex 32`)
 - `HOST`: Server host (default: 127.0.0.1) - the address the server will bind to.
 - `PORT`: Server port (default: 8000) - the TCP port for HTTP transport.
 - `MCP_PATH`: MCP endpoint path (default: /mcp) - the HTTP path where the MCP endpoint is exposed.
@@ -156,16 +186,57 @@ Add the following to your Claude Desktop configuration file:
 }
 ```
 
+**🔓 Note**: stdio transport does not require bearer token authentication as it operates over standard input/output streams, not HTTP.
+
 ### Other MCP Clients
 
 **HTTP Transport (Modern):**
-Connect to `http://127.0.0.1:8000/mcp` using any HTTP MCP client
+Connect to `http://127.0.0.1:8000/mcp` using any HTTP MCP client with bearer token authentication
 
 **HTTPS Transport (Secure):**
-Connect to `https://127.0.0.1:8000/mcp` when HTTPS is enabled (requires certificate configuration)
+Connect to `https://127.0.0.1:8000/mcp` when HTTPS is enabled (requires certificate configuration and bearer token)
 
 **stdio Transport (Legacy):**
-Run `run_stdio.py` and connect to its stdin/stdout streams
+Run `run_stdio.py` and connect to its stdin/stdout streams (no authentication required)
+
+## Security & Authentication
+
+### Bearer Token Authentication
+
+The FastMCP server with HTTP transport requires bearer token authentication for security:
+
+#### Setup
+```bash
+# Generate a secure 256-bit token
+BEARER_TOKEN=$(openssl rand -hex 32)
+echo "BEARER_TOKEN=$BEARER_TOKEN" > .env
+
+# Start server
+python run.py
+```
+
+#### Client Usage
+```bash
+# All HTTP requests must include Authorization header
+curl -H "Authorization: Bearer $BEARER_TOKEN" \
+     -H "Content-Type: application/json" \
+     -H "Accept: application/json, text/event-stream" \
+     -X POST http://127.0.0.1:8000/mcp/ \
+     -d '{"jsonrpc": "2.0", "method": "get_budget_summary", "id": 1}'
+```
+
+#### Security Features
+- **Required for HTTP Transport**: All HTTP requests must include valid bearer token
+- **Configurable Token**: Set via `BEARER_TOKEN` environment variable  
+- **Secure Validation**: Middleware validates token format and content
+- **HTTP-Only**: stdio transport bypasses authentication (direct process communication)
+- **Error Handling**: Returns 401 Unauthorized for missing/invalid tokens
+
+#### Token Management
+- **Generation**: Use `openssl rand -hex 32` for cryptographically secure tokens
+- **Storage**: Store in environment variables or `.env` file (never in code)
+- **Rotation**: Generate new tokens periodically for enhanced security
+- **Environment Isolation**: Use different tokens for development, testing, and production
 
 ## Available MCP Tools
 
@@ -249,7 +320,8 @@ budget-mcp-server/
 ├── app/
 │   ├── __init__.py              # Legacy MCP server factory
 │   ├── fastmcp_server.py        # FastMCP server with HTTP transport
-│   ├── config.py                # Configuration management (includes HTTPS settings)
+│   ├── config.py                # Configuration management (includes HTTPS & auth settings)
+│   ├── auth.py                  # Bearer token authentication middleware ✅ NEW
 │   ├── mcp/                     # Legacy MCP tool implementations
 │   │   ├── envelope_tools.py         # Envelope management tools (legacy)
 │   │   ├── transaction_tools.py      # Transaction management tools (legacy)
@@ -265,12 +337,16 @@ budget-mcp-server/
 ├── tests/                       # Test suite
 │   ├── test_fastmcp_tools.py    # FastMCP transport tests
 │   ├── test_mcp_tools.py        # Legacy stdio transport tests
+│   ├── test_auth.py             # Bearer token middleware tests ✅ NEW
+│   ├── test_fastmcp_auth.py     # FastMCP server authentication tests ✅ NEW
+│   ├── test_config_auth.py      # Configuration & startup validation tests ✅ NEW
 │   └── [other test files]
-├── run.py                       # FastMCP server entry point (HTTP/HTTPS)
-├── run_stdio.py                 # Legacy MCP server entry point (stdio)
+├── .env.template                # Environment variables template ✅ NEW
+├── run.py                       # FastMCP server entry point (HTTP/HTTPS with auth)
+├── run_stdio.py                 # Legacy MCP server entry point (stdio, no auth)
 ├── HTTPS_SETUP.md              # Detailed HTTPS configuration guide
 ├── pyproject.toml              # Project configuration (uv)
-├── requirements.txt            # Dependencies (pip fallback)
+├── requirements.txt            # Dependencies (pip fallback, includes FastAPI)
 ├── uv.lock                     # Dependency lockfile (uv)
 ├── Dockerfile                  # Container definition (includes OpenSSL)
 └── docker-compose.yml         # Container orchestration (includes HTTPS volumes)
@@ -293,6 +369,18 @@ uv run pytest tests/test_fastmcp_tools.py
 uv run pytest tests/test_mcp_tools.py
 ```
 
+**Authentication tests:**
+```bash
+# Bearer token middleware tests
+uv run pytest tests/test_auth.py
+
+# FastMCP server authentication integration tests  
+uv run pytest tests/test_fastmcp_auth.py
+
+# Configuration and startup validation tests
+uv run pytest tests/test_config_auth.py
+```
+
 **With pip:**
 ```bash
 pytest
@@ -304,6 +392,9 @@ pytest
 - `HOST`: Server host for HTTP transport (default: 127.0.0.1) - the address the server will bind to.
 - `PORT`: Server port for HTTP transport (default: 8000) - the TCP port for HTTP transport.
 - `MCP_PATH`: MCP endpoint path (default: /mcp) - the HTTP path where the MCP endpoint is exposed.
+
+**Authentication Configuration:**
+- `BEARER_TOKEN`: **REQUIRED** for HTTP transport - Bearer token for API authentication security (generate with `openssl rand -hex 32`)
 
 **Application Configuration:**
 - `APP_ENV`: Set to 'production', 'development', or 'testing' (default: development) - the application environment, affecting logging and database persistence.

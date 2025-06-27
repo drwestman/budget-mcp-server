@@ -11,16 +11,18 @@ from app.config import config
 from app.models.database import Database
 from app.services.envelope_service import EnvelopeService
 from app.services.transaction_service import TransactionService
+from app.auth import BearerTokenMiddleware
 
 
-def create_fastmcp_server(config_name=None):
+def create_fastmcp_server(config_name=None, enable_auth=True):
     """
     Factory function to create FastMCP server with all tools registered.
     
     Args:
         config_name (str): Configuration environment ('development', 'production', 'testing')
+        enable_auth (bool): Whether to enable bearer token authentication for HTTP transport
     Returns:
-        FastMCP: Configured FastMCP server instance
+        FastMCP: Configured FastMCP server instance with middleware properly configured
     """
     if config_name is None:
         config_name = os.getenv('APP_ENV', 'development')
@@ -40,6 +42,25 @@ def create_fastmcp_server(config_name=None):
     mcp.envelope_service = envelope_service
     mcp.transaction_service = transaction_service
     mcp.db = db
+    
+    # Add bearer token authentication middleware if enabled and token is configured
+    # IMPORTANT: This ensures the same HTTP app instance is used and middleware is properly applied
+    if enable_auth and app_config.BEARER_TOKEN:
+        from app.auth import BearerTokenMiddleware
+        
+        # Create a wrapper function to add middleware when the HTTP app is first accessed
+        original_http_app = mcp.http_app
+        _http_app_instance = None
+        
+        def http_app_with_auth(*args, **kwargs):
+            nonlocal _http_app_instance
+            if _http_app_instance is None:
+                _http_app_instance = original_http_app(*args, **kwargs)
+                _http_app_instance.add_middleware(BearerTokenMiddleware, bearer_token=app_config.BEARER_TOKEN)
+            return _http_app_instance
+        
+        # Replace the http_app method to ensure consistent instance with middleware
+        mcp.http_app = http_app_with_auth
     
     # Register envelope tools
     @mcp.tool()
