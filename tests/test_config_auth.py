@@ -78,9 +78,9 @@ class TestStartupValidation:
     
     @patch('sys.exit')
     @patch('builtins.print')
-    def test_run_main_exits_without_bearer_token(self, mock_print, mock_exit):
-        """Test that run.py main() exits when BEARER_TOKEN is missing."""
-        with patch.dict(os.environ, {}, clear=True):
+    def test_run_main_exits_without_bearer_token_in_production(self, mock_print, mock_exit):
+        """Test that run.py main() exits when BEARER_TOKEN is missing in production."""
+        with patch.dict(os.environ, {'APP_ENV': 'production'}, clear=True):
             if 'BEARER_TOKEN' in os.environ:
                 del os.environ['BEARER_TOKEN']
             
@@ -100,9 +100,9 @@ class TestStartupValidation:
     
     @patch('sys.exit')
     @patch('builtins.print')
-    def test_run_main_exits_with_empty_bearer_token(self, mock_print, mock_exit):
-        """Test that run.py main() exits when BEARER_TOKEN is empty."""
-        with patch.dict(os.environ, {'BEARER_TOKEN': ''}):
+    def test_run_main_exits_with_empty_bearer_token_in_production(self, mock_print, mock_exit):
+        """Test that run.py main() exits when BEARER_TOKEN is empty in production."""
+        with patch.dict(os.environ, {'BEARER_TOKEN': '', 'APP_ENV': 'production'}):
             from run import main
             
             main()

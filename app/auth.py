@@ -1,6 +1,7 @@
 """
 Authentication middleware for FastMCP server with bearer token validation.
 """
+import secrets
 from typing import Callable
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
@@ -60,8 +61,8 @@ class BearerTokenMiddleware(BaseHTTPMiddleware):
                 content={"error": "Missing bearer token"}
             )
         
-        # Validate token
-        if token != self.bearer_token:
+        # Validate token using constant-time comparison to prevent timing attacks
+        if not secrets.compare_digest(token, self.bearer_token):
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,  
                 content={"error": "Invalid bearer token"}
