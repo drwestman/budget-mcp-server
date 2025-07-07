@@ -39,7 +39,7 @@ The easiest way to install and run the MCP server is using uvx:
 
 ```bash
 # Install and run directly from GitHub
-uvx --from git+https://github.com/your-username/budget-mcp-server budget-mcp-server
+uvx --from git+https://github.com/<OWNER>/budget-mcp-server budget-mcp-server
 
 # Or install from a local directory
 uvx --from . budget-mcp-server
