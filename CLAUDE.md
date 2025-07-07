@@ -104,19 +104,9 @@ BEARER_TOKEN=your-secure-token-here HTTPS_ENABLED=true PORT=8443 docker compose 
 ```
 
 ### Dependencies
-Install dependencies with uv (recommended):
+Install dependencies with uv:
 ```bash
 uv sync
-```
-
-**Alternative with pip:**
-```bash
-pip install -r requirements.txt
-```
-
-**Note**: On systems with externally-managed Python environments (like Ubuntu/Debian), you may need to use:
-```bash
-pip install --break-system-packages -r requirements.txt
 ```
 
 Required packages:
@@ -136,7 +126,6 @@ Run tests with:
 pytest
 ```
 
-**With uv:**
 ```bash
 uv run pytest
 ```
