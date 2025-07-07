@@ -84,39 +84,6 @@ The server will be available at `https://127.0.0.1:8000/mcp`
 
 See [HTTPS_SETUP.md](HTTPS_SETUP.md) for detailed HTTPS configuration instructions.
 
-### Using pip (Alternative)
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd budget-mcp-server
-```
-
-2. Create a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-4. Set up authentication and run the FastMCP server:
-```bash
-# Set bearer token for authentication (required)
-export BEARER_TOKEN=$(openssl rand -hex 32)
-echo "BEARER_TOKEN=$BEARER_TOKEN" > .env
-
-# Run the server
-python run.py
-```
-
-The server will start with Streamable HTTP transport on `http://127.0.0.1:8000/mcp`
-
-**⚠️ Security Note**: The `BEARER_TOKEN` environment variable is **required** for HTTP transport.
-
 ### Docker Setup
 
 #### Development Mode (Default)
@@ -346,7 +313,6 @@ budget-mcp-server/
 ├── run_stdio.py                 # Legacy MCP server entry point (stdio, no auth)
 ├── HTTPS_SETUP.md              # Detailed HTTPS configuration guide
 ├── pyproject.toml              # Project configuration (uv)
-├── requirements.txt            # Dependencies (pip fallback, includes FastAPI)
 ├── uv.lock                     # Dependency lockfile (uv)
 ├── Dockerfile                  # Container definition (includes OpenSSL)
 └── docker-compose.yml         # Container orchestration (includes HTTPS volumes)
@@ -381,10 +347,6 @@ uv run pytest tests/test_fastmcp_auth.py
 uv run pytest tests/test_config_auth.py
 ```
 
-**With pip:**
-```bash
-pytest
-```
 
 ### Environment Variables
 
