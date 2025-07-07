@@ -43,14 +43,17 @@ async def run_stdio():
 
 def main():
     """Main entry point for the CLI."""
+def main():
+    """Main entry point for the CLI."""
     try:
         asyncio.run(run_stdio())
+        return 0
     except KeyboardInterrupt:
         print("\nShutting down Budget MCP Server...", file=sys.stderr)
-        sys.exit(0)
+        return 0
     except Exception as e:
         print(f"Error starting Budget MCP Server: {e}", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
 
 if __name__ == '__main__':
