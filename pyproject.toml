@@ -8,6 +8,7 @@ dependencies = [
     "duckdb>=0.8.0", # Matched with requirements.txt
     "fastmcp>=2.3.0",
     "mcp>=1.9.4",
+    "fastapi>=0.104.0", # Required for auth middleware
 ]
 
 [tool.uv]
