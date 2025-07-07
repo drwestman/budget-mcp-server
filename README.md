@@ -33,6 +33,31 @@ The [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) is an open 
 
 ## Installation
 
+### uvx Installation (Recommended for Users)
+
+The easiest way to install and run the MCP server is using uvx:
+
+```bash
+# Install and run directly from GitHub
+uvx --from git+https://github.com/your-username/budget-mcp-server budget-mcp-server
+
+# Or install from a local directory
+uvx --from . budget-mcp-server
+```
+
+**Benefits of uvx installation:**
+- Automatic dependency management
+- Isolated environment execution
+- Direct stdio transport for MCP clients
+- No manual Python environment setup required
+
+**Environment Configuration:**
+- `APP_ENV`: Set to 'production', 'development', or 'testing' (default: development)
+- Database file location: `budget_app.duckdb` in current directory
+- In development mode, database persists between runs
+
+### Development Installation
+
 ### Prerequisites
 
 - Python 3.12+
