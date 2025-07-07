@@ -41,7 +41,7 @@ Users can install and run the MCP server directly using uvx:
 
 ```bash
 # Install and run the MCP server with stdio transport
-uvx --from git+https://github.com/your-username/budget-mcp-server budget-mcp-server
+uvx --from git+https://github.com/<OWNER>/budget-mcp-server budget-mcp-server
 
 # Or install from a local directory
 uvx --from . budget-mcp-server
