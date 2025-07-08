@@ -1,7 +1,7 @@
 [project]
 name = "budget-mcp-server"
 version = "0.1.0"
-description = "Add your description here"
+description = "Budget Cash Envelope MCP Server - A cash envelope budgeting system for AI assistants"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -10,6 +10,9 @@ dependencies = [
     "mcp>=1.9.4",
     "fastapi>=0.104.0", # Required for auth middleware
 ]
+
+[project.scripts]
+budget-mcp-server = "app.cli:main"
 
 [tool.uv]
 dev-dependencies = [

@@ -34,6 +34,30 @@ This is a Budget Cash Envelope MCP Server built with Python and DuckDB. It imple
 - `get_envelope_balance` - Get current balance for specific envelope
 - `get_budget_summary` - Get overall budget status
 
+## Installation
+
+### uvx Installation (Recommended)
+Users can install and run the MCP server directly using uvx:
+
+```bash
+# Install and run the MCP server with stdio transport
+uvx --from git+https://github.com/<OWNER>/budget-mcp-server budget-mcp-server
+
+# Or install from a local directory
+uvx --from . budget-mcp-server
+```
+
+The uvx installation provides:
+- Automatic dependency management
+- Isolated environment execution
+- Direct stdio transport for MCP clients
+- No manual Python environment setup required
+
+**Environment Configuration:**
+- `APP_ENV`: Set to 'production', 'development', or 'testing' (default: development)
+- Database file location: `budget_app.duckdb` in current directory
+- In development mode, database persists between runs (no automatic reset)
+
 ## Development Commands
 
 ### Running the MCP Server
