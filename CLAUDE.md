@@ -60,16 +60,56 @@ The uvx installation provides:
 
 ## Development Commands
 
+### Environment Setup
+
+#### Interactive Setup Script (Recommended)
+Use the interactive setup script to configure your `.env` file:
+
+```bash
+# Run the interactive setup script
+./setup-env.sh
+```
+
+The script will guide you through:
+- **Environment Selection**: Choose development, production, or testing
+- **Database Configuration**: Set database file path with environment-specific defaults
+- **Authentication Setup**: Auto-generate secure bearer token or provide custom token
+- **Server Configuration**: Configure host, port, and MCP endpoint path
+- **HTTPS Configuration**: Optionally enable HTTPS with SSL certificate setup
+- **Certificate Generation**: Generate self-signed certificates if needed
+
+**Key Features:**
+- Press Enter to accept sensible defaults for all prompts
+- Automatic backup of existing `.env` files
+- Auto-generated secure bearer tokens using OpenSSL
+- Environment-specific configuration defaults
+- Optional SSL certificate generation integration
+
+#### Manual Environment Configuration
+Alternatively, create a `.env` file manually:
+
+```bash
+# Example .env file for development
+APP_ENV=development
+DATABASE_FILE=budget_app.duckdb
+BEARER_TOKEN=your-secure-token-here
+HOST=127.0.0.1
+PORT=8000
+MCP_PATH=/mcp
+HTTPS_ENABLED=false
+SSL_CERT_FILE=certs/server.crt
+SSL_KEY_FILE=certs/server.key
+```
+
 ### Running the MCP Server
 
 #### FastMCP with Streamable HTTP Transport (Default)
 ```bash
-# Set required bearer token for authentication
-BEARER_TOKEN=your-secure-token-here python3 run.py
-
-# Or use environment file
-echo "BEARER_TOKEN=your-secure-token-here" > .env
+# Using environment file (recommended)
 python3 run.py
+
+# Or set bearer token directly
+BEARER_TOKEN=your-secure-token-here python3 run.py
 ```
 The FastMCP server starts with Streamable HTTP transport on `http://127.0.0.1:8000/mcp` by default. The database file `budget_app.duckdb` is automatically created and reset on each run during development.
 

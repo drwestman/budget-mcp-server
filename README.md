@@ -76,13 +76,46 @@ cd budget-mcp-server
 uv sync
 ```
 
-3. Set up authentication and run the FastMCP server:
+3. Set up environment configuration:
+
+#### Option A: Interactive Setup Script (Recommended)
+```bash
+# Run the interactive setup script
+./setup-env.sh
+```
+
+The script will guide you through:
+- **Environment Selection**: Choose development, production, or testing
+- **Database Configuration**: Set database file path with environment-specific defaults
+- **Authentication Setup**: Auto-generate secure bearer token or provide custom token
+- **Server Configuration**: Configure host, port, and MCP endpoint path
+- **HTTPS Configuration**: Optionally enable HTTPS with SSL certificate setup
+- **Certificate Generation**: Generate self-signed certificates if needed
+
+**Key Features:**
+- Press Enter to accept sensible defaults for all prompts
+- Automatic backup of existing `.env` files
+- Auto-generated secure bearer tokens using OpenSSL
+- Environment-specific configuration defaults
+- Optional SSL certificate generation integration
+
+#### Option B: Manual Setup
 ```bash
 # Set bearer token for authentication (required)
 BEARER_TOKEN=$(openssl rand -hex 32)
 echo "BEARER_TOKEN=$BEARER_TOKEN" > .env
 
-# Run the server
+# Add other environment variables as needed
+echo "APP_ENV=development" >> .env
+echo "DATABASE_FILE=budget_app.duckdb" >> .env
+echo "HOST=127.0.0.1" >> .env
+echo "PORT=8000" >> .env
+echo "MCP_PATH=/mcp" >> .env
+echo "HTTPS_ENABLED=false" >> .env
+```
+
+4. Run the server:
+```bash
 uv run python run.py
 ```
 
@@ -94,12 +127,25 @@ The server will start with Streamable HTTP transport on `http://127.0.0.1:8000/m
 
 For secure connections, you can enable HTTPS with self-signed certificates:
 
+#### Option A: Using Setup Script (Recommended)
+```bash
+# Run the interactive setup script and enable HTTPS when prompted
+./setup-env.sh
+```
+
+The script will:
+- Prompt you to enable HTTPS
+- Configure SSL certificate file paths
+- Offer to generate self-signed certificates automatically
+- Set up the complete HTTPS configuration
+
+#### Option B: Manual HTTPS Setup
 1. **Generate certificates:**
 ```bash
 uv run python scripts/generate_cert.py
 ```
 
-2. **Run with HTTPS and authentication:**
+2. **Configure environment:**
 ```bash
 # Set bearer token and enable HTTPS
 BEARER_TOKEN=$(openssl rand -hex 32) HTTPS_ENABLED=true uv run python run.py
@@ -314,28 +360,46 @@ budget-mcp-server/
 │   ├── fastmcp_server.py        # FastMCP server with HTTP transport
 │   ├── config.py                # Configuration management (includes HTTPS & auth settings)
 │   ├── auth.py                  # Bearer token authentication middleware ✅ NEW
+│   ├── cli.py                   # CLI entry point for uvx installation
 │   ├── mcp/                     # Legacy MCP tool implementations
-│   │   ├── envelope_tools.py         # Envelope management tools (legacy)
-│   │   ├── transaction_tools.py      # Transaction management tools (legacy)
-│   │   └── utility_tools.py          # Utility and summary tools (legacy)
+│   │   ├── __init__.py          # MCP module initialization
+│   │   ├── registry.py          # Centralized tool registration system
+│   │   ├── envelope_tools.py    # Envelope management tools (legacy)
+│   │   ├── transaction_tools.py # Transaction management tools (legacy)
+│   │   └── utility_tools.py     # Utility and summary tools (legacy)
 │   ├── models/                  # Data models
+│   │   ├── __init__.py          # Models module initialization
 │   │   └── database.py          # Database operations
 │   ├── services/                # Business logic (shared)
-│   │   ├── envelope_service.py
-│   │   └── transaction_service.py
+│   │   ├── __init__.py          # Services module initialization
+│   │   ├── envelope_service.py  # Envelope business logic
+│   │   └── transaction_service.py # Transaction business logic
 │   └── utils/                   # Utilities
+│       └── __init__.py          # Utilities module initialization
 ├── scripts/                     # Utility scripts
 │   └── generate_cert.py         # SSL certificate generation for HTTPS
 ├── tests/                       # Test suite
+│   ├── __init__.py              # Test module initialization
+│   ├── conftest.py              # Pytest configuration and fixtures
 │   ├── test_fastmcp_tools.py    # FastMCP transport tests
 │   ├── test_mcp_tools.py        # Legacy stdio transport tests
 │   ├── test_auth.py             # Bearer token middleware tests ✅ NEW
 │   ├── test_fastmcp_auth.py     # FastMCP server authentication tests ✅ NEW
 │   ├── test_config_auth.py      # Configuration & startup validation tests ✅ NEW
-│   └── [other test files]
-├── .env.template                # Environment variables template ✅ NEW
+│   ├── test_models/             # Model tests
+│   │   ├── __init__.py          # Test models module initialization
+│   │   └── test_database.py     # Database model tests
+│   └── test_services/           # Service tests
+│       ├── __init__.py          # Test services module initialization
+│       ├── test_envelope_service.py  # Envelope service tests
+│       └── test_transaction_service.py # Transaction service tests
+├── certs/                       # SSL certificates directory
+├── data/                        # Database files directory
+├── setup-env.sh                 # Interactive environment setup script ✅ NEW
 ├── run.py                       # FastMCP server entry point (HTTP/HTTPS with auth)
 ├── run_stdio.py                 # Legacy MCP server entry point (stdio, no auth)
+├── ApplicationStructure.md      # Detailed application architecture documentation
+├── CLAUDE.md                    # Claude Code instructions and project guidance
 ├── HTTPS_SETUP.md              # Detailed HTTPS configuration guide
 ├── pyproject.toml              # Project configuration (uv)
 ├── uv.lock                     # Dependency lockfile (uv)
