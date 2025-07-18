@@ -178,4 +178,4 @@ Desktop.ini
 
 # SSL certificates
 *.crt
-*.key
+*.keyplans/

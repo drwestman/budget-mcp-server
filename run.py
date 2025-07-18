@@ -12,11 +12,10 @@ from app.fastmcp_server import create_fastmcp_server
 
 def run_https_server(mcp, host, port, path, ssl_cert_file, ssl_key_file, log_level):
     """
-    Run the FastMCP server with HTTPS using proper FastMCP initialization.
+    Run the FastMCP server with HTTPS using Uvicorn with SSL context.
     
-    Note: This implementation uses FastMCP's run method with SSL configuration,
-    but due to current FastMCP limitations with HTTPS, it falls back to 
-    standard HTTP mode. HTTPS support requires additional FastMCP framework updates.
+    This implementation uses FastMCP's http_app() method to get the ASGI application
+    and runs it with Uvicorn's SSL support for proper HTTPS functionality.
     
     Args:
         mcp: FastMCP server instance
@@ -27,16 +26,20 @@ def run_https_server(mcp, host, port, path, ssl_cert_file, ssl_key_file, log_lev
         ssl_key_file: Path to SSL private key file
         log_level: Logging level
     """
-    print("Note: HTTPS mode currently has limitations with FastMCP task group initialization.")
-    print("Falling back to HTTP mode for proper FastMCP functionality.")
-    print("For production HTTPS, consider using a reverse proxy (nginx, traefik) in front of the HTTP server.")
+    print("Starting HTTPS server with SSL/TLS encryption...")
+    print(f"SSL Certificate: {ssl_cert_file}")
+    print(f"SSL Private Key: {ssl_key_file}")
     
-    # Run in HTTP mode to ensure proper FastMCP initialization
-    mcp.run(
-        transport="streamable-http",
+    # Get the ASGI application from FastMCP
+    app = mcp.http_app()
+    
+    # Run with Uvicorn and SSL certificates
+    uvicorn.run(
+        app,
         host=host,
         port=port,
-        path=path,
+        ssl_certfile=ssl_cert_file,
+        ssl_keyfile=ssl_key_file,
         log_level=log_level
     )
 
