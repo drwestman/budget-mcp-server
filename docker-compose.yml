@@ -11,7 +11,7 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - MCP_PATH=/mcp
-      - HTTPS_ENABLED=false
+      - HTTPS_ENABLED=true
       - SSL_CERT_FILE=/app/certs/server.crt
       - SSL_KEY_FILE=/app/certs/server.key
     ports:
@@ -34,7 +34,7 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - MCP_PATH=/mcp
-      - HTTPS_ENABLED=false
+      - HTTPS_ENABLED=true
       - SSL_CERT_FILE=/app/certs/server.crt
       - SSL_KEY_FILE=/app/certs/server.key
     ports:
@@ -43,6 +43,7 @@ services:
     volumes:
       - budget_data:/app/data
       - budget_certs:/app/certs  # SSL certificates volume
+      - ./certs:/app/certs  # Mount host certs directory
       - .:/app
     restart: unless-stopped
     networks:
