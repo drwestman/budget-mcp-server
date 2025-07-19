@@ -17,7 +17,7 @@ This guide explains how to enable HTTPS for the Budget MCP Server using self-sig
 
 3. **Access the server:**
    ```
-   https://127.0.0.1:8000/mcp
+   https://127.0.0.1:8443/mcp
    ```
 
 ## Environment Variables
@@ -28,7 +28,7 @@ This guide explains how to enable HTTPS for the Budget MCP Server using self-sig
 | `SSL_CERT_FILE` | Path to SSL certificate file | `certs/server.crt` |
 | `SSL_KEY_FILE` | Path to SSL private key file | `certs/server.key` |
 | `HOST` | Server host address | `127.0.0.1` |
-| `PORT` | Server port | `8000` |
+| `PORT` | Server port | `8000` (HTTP), `8443` (HTTPS) |
 
 ## Certificate Generation
 
@@ -75,6 +75,10 @@ openssl req -new -x509 -key certs/server.key -out certs/server.crt -days 365 \
 
 3. **Run with Docker:**
    ```bash
+   # Production profile (default configuration uses HTTPS on port 8443)
+   docker compose --profile prod up -d
+   
+   # Development profile (default configuration uses HTTPS on port 8443)
    docker compose up -d
    ```
 
@@ -160,10 +164,10 @@ For production, use certificates from a trusted Certificate Authority:
 
 ```bash
 # Test with curl (ignoring certificate validation)
-curl -k https://localhost:8000/mcp
+curl -k https://localhost:8443/mcp
 
 # Test with openssl
-openssl s_client -connect localhost:8000 -servername localhost
+openssl s_client -connect localhost:8443 -servername localhost
 ```
 
 ## Implementation Details
@@ -172,7 +176,17 @@ The HTTPS implementation uses:
 - **Custom Uvicorn server** with SSL support
 - **FastMCP's `http_app()`** method to get the ASGI application
 - **Standard SSL certificate files** (PEM format)
+- **SSL context** with proper certificate chain loading
 
 The server automatically detects HTTPS mode and uses the appropriate configuration:
-- HTTP mode: Uses FastMCP's built-in server
-- HTTPS mode: Uses custom Uvicorn server with SSL configuration
+- HTTP mode: Uses FastMCP's built-in server on port 8000
+- HTTPS mode: Uses custom Uvicorn server with SSL configuration on port 8443
+
+## Docker Configuration Notes
+
+The default docker-compose.yml configuration now enables HTTPS by default with:
+- `HTTPS_ENABLED=true`
+- `PORT=8443`
+- Certificate volume mounting from `./certs:/app/certs`
+
+This ensures the Docker container has access to SSL certificates and runs in HTTPS mode.

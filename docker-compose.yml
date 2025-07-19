@@ -9,7 +9,7 @@ services:
       - APP_ENV=production
       - DATABASE_FILE=/app/data/budget_app.duckdb
       - HOST=0.0.0.0
-      - PORT=8000
+      - PORT=8443
       - MCP_PATH=/mcp
       - HTTPS_ENABLED=true
       - SSL_CERT_FILE=/app/certs/server.crt
@@ -20,6 +20,7 @@ services:
     volumes:
       - budget_data:/app/data
       - budget_certs:/app/certs  # SSL certificates volume
+      - ./certs:/app/certs  # Mount host certificates directory
     restart: unless-stopped
     networks:
       - default
@@ -32,7 +33,7 @@ services:
       - APP_ENV=development
       - DATABASE_FILE=/app/data/budget_app.duckdb
       - HOST=0.0.0.0
-      - PORT=8000
+      - PORT=8443
       - MCP_PATH=/mcp
       - HTTPS_ENABLED=true
       - SSL_CERT_FILE=/app/certs/server.crt
@@ -43,7 +44,7 @@ services:
     volumes:
       - budget_data:/app/data
       - budget_certs:/app/certs  # SSL certificates volume
-      - ./certs:/app/certs  # Mount host certs directory
+      - ./certs:/app/certs  # Mount host certificates directory
       - .:/app
     restart: unless-stopped
     networks:
