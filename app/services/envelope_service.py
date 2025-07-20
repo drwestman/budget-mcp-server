@@ -3,6 +3,7 @@ class EnvelopeService:
     Handles business logic related to envelopes.
     Depends on the Database class (Dependency Inversion Principle).
     """
+
     def __init__(self, db):
         self.db = db
 
@@ -19,37 +20,54 @@ class EnvelopeService:
         if self.db.get_envelope_by_category(category):
             raise ValueError(f"Envelope with category '{category}' already exists.")
 
-        envelope_id = self.db.insert_envelope(category.strip(), budgeted_amount, starting_balance, description)
+        envelope_id = self.db.insert_envelope(
+            category.strip(), budgeted_amount, starting_balance, description
+        )
         return self.get_envelope(envelope_id)
 
     def get_envelope(self, envelope_id):
         """Retrieves an envelope by ID, including its current balance."""
         envelope = self.db.get_envelope_by_id(envelope_id)
         if envelope:
-            envelope['current_balance'] = self.db.get_envelope_current_balance(envelope_id)
+            envelope["current_balance"] = self.db.get_envelope_current_balance(
+                envelope_id
+            )
         return envelope
 
     def get_all_envelopes(self):
         """Retrieves all envelopes, each with its current balance."""
         envelopes = self.db.get_all_envelopes()
         for envelope in envelopes:
-            envelope['current_balance'] = self.db.get_envelope_current_balance(envelope['id'])
+            envelope["current_balance"] = self.db.get_envelope_current_balance(
+                envelope["id"]
+            )
         return envelopes
 
-    def update_envelope(self, envelope_id, category=None, budgeted_amount=None, starting_balance=None, description=None):
+    def update_envelope(
+        self,
+        envelope_id,
+        category=None,
+        budgeted_amount=None,
+        starting_balance=None,
+        description=None,
+    ):
         """Updates an envelope after validation."""
         if category is not None:
             if not isinstance(category, str) or len(category.strip()) == 0:
                 raise ValueError("Category must be a non-empty string.")
             # Check if new category already exists for another envelope
             existing_envelope = self.db.get_envelope_by_category(category.strip())
-            if existing_envelope and existing_envelope['id'] != envelope_id:
+            if existing_envelope and existing_envelope["id"] != envelope_id:
                 raise ValueError(f"Envelope with category '{category}' already exists.")
-            category = category.strip() # Strip whitespace for consistency
+            category = category.strip()  # Strip whitespace for consistency
 
-        if budgeted_amount is not None and (not isinstance(budgeted_amount, (int, float)) or budgeted_amount < 0):
+        if budgeted_amount is not None and (
+            not isinstance(budgeted_amount, (int, float)) or budgeted_amount < 0
+        ):
             raise ValueError("Budgeted amount must be a non-negative number.")
-        if starting_balance is not None and not isinstance(starting_balance, (int, float)):
+        if starting_balance is not None and not isinstance(
+            starting_balance, (int, float)
+        ):
             raise ValueError("Starting balance must be a number.")
 
         updated = self.db.update_envelope(
@@ -57,10 +75,12 @@ class EnvelopeService:
             category=category,
             budgeted_amount=budgeted_amount,
             starting_balance=starting_balance,
-            description=description
+            description=description,
         )
         if not updated:
-            raise ValueError(f"Envelope with ID {envelope_id} not found or no valid fields to update.")
+            raise ValueError(
+                f"Envelope with ID {envelope_id} not found or no valid fields to update."
+            )
         return self.get_envelope(envelope_id)
 
     def delete_envelope(self, envelope_id):
@@ -68,24 +88,24 @@ class EnvelopeService:
         if not self.db.get_envelope_by_id(envelope_id):
             raise ValueError(f"Envelope with ID {envelope_id} not found.")
         self.db.delete_envelope(envelope_id)
-        return { "message": f"Envelope with ID {envelope_id} deleted successfully." }
-                
+        return {"message": f"Envelope with ID {envelope_id} deleted successfully."}
+
     def get_envelope_balance(self, envelope_id):
         """Gets the current balance for a specific envelope.
-        
+
         Returns:
             A dictionary containing the envelope ID, category, current balance, starting balance, and budgeted amount.
         """
         if not self.db.get_envelope_by_id(envelope_id):
             raise ValueError(f"Envelope with ID {envelope_id} not found.")
-        
+
         current_balance = self.db.get_envelope_current_balance(envelope_id)
         envelope = self.db.get_envelope_by_id(envelope_id)
-        
+
         return {
             "envelope_id": envelope_id,
-            "category": envelope['category'],
+            "category": envelope["category"],
             "current_balance": current_balance,
-            "starting_balance": envelope['starting_balance'],
-            "budgeted_amount": envelope['budgeted_amount']
+            "starting_balance": envelope["starting_balance"],
+            "budgeted_amount": envelope["budgeted_amount"],
         }
