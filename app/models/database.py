@@ -1,11 +1,17 @@
 import duckdb
+import logging
 from datetime import date
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
+
 
 class Database:
     """
     Manages all interactions with the DuckDB database.
     Adheres to the Single Responsibility Principle (SRP) by focusing solely on data persistence.
     """
+
     def __init__(self, db_path):
         """
         Initializes the Database connection and ensures tables exist.
@@ -21,15 +27,18 @@ class Database:
         """Establishes a connection to the DuckDB database."""
         try:
             self.conn = duckdb.connect(database=self.db_path, read_only=False)
-            self.conn.execute("SET GLOBAL pandas_analyze_sample = 10000;") # Ensure proper type inference for pandas
+            self.conn.execute(
+                "SET GLOBAL pandas_analyze_sample = 10000;"
+            )  # Ensure proper type inference for pandas
         except Exception as e:
-            print(f"Error connecting to database: {e}")
+            logger.error(f"Error connecting to database: {e}")
             raise
 
     def _create_tables(self):
         """Creates the 'envelopes' and 'transactions' tables if they don't exist."""
         try:
-            self.conn.execute("""
+            self.conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS envelopes (
                     id INTEGER PRIMARY KEY,
                     category VARCHAR NOT NULL UNIQUE,
@@ -37,9 +46,11 @@ class Database:
                     starting_balance DOUBLE NOT NULL,
                     description VARCHAR
                 );
-            """)
+            """
+            )
             self.conn.execute("CREATE SEQUENCE IF NOT EXISTS envelopes_id_seq;")
-            self.conn.execute("""
+            self.conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS transactions (
                     id INTEGER PRIMARY KEY,
                     envelope_id INTEGER NOT NULL,
@@ -49,19 +60,20 @@ class Database:
                     type VARCHAR NOT NULL, -- 'income' or 'expense'
                     FOREIGN KEY (envelope_id) REFERENCES envelopes(id)
                 );
-            """)
+            """
+            )
             self.conn.execute("CREATE SEQUENCE IF NOT EXISTS transactions_id_seq;")
             self.conn.commit()
-            print("Database tables checked/created successfully.")
+            logger.info("Database tables checked/created successfully.")
         except Exception as e:
-            print(f"Error creating tables: {e}")
+            logger.error(f"Error creating tables: {e}")
             raise
 
     def close(self):
         """Closes the database connection."""
         if self.conn:
             self.conn.close()
-            print("Database connection closed.")
+            logger.info("Database connection closed.")
 
     # --- Envelope CRUD Operations ---
     def insert_envelope(self, category, budgeted_amount, starting_balance, description):
@@ -69,18 +81,21 @@ class Database:
         try:
             result = self.conn.execute(
                 "INSERT INTO envelopes (id, category, budgeted_amount, starting_balance, description) VALUES (nextval('envelopes_id_seq'), ?, ?, ?, ?) RETURNING id;",
-                (category, budgeted_amount, starting_balance, description)
+                (category, budgeted_amount, starting_balance, description),
             ).fetchone()
             self.conn.commit()
             return result[0] if result else None
         except duckdb.ConstraintException as e:
             error_str = str(e)
-            if "violates unique constraint" in error_str.lower() and f"category: {category}" in error_str: # More robust check
+            if (
+                "violates unique constraint" in error_str.lower()
+                and f"category: {category}" in error_str
+            ):  # More robust check
                 raise ValueError(f"Envelope with category '{category}' already exists.")
             # Re-raise other constraint exceptions that are not unique violations on category
             raise
         except Exception as e:
-            print(f"Error inserting envelope: {e}")
+            logger.error(f"Error inserting envelope: {e}")
             raise
 
     def get_envelope_by_id(self, envelope_id):
@@ -88,7 +103,7 @@ class Database:
         try:
             result = self.conn.execute(
                 "SELECT id, category, budgeted_amount, starting_balance, description FROM envelopes WHERE id = ?;",
-                (envelope_id,)
+                (envelope_id,),
             ).fetchone()
             if result:
                 return {
@@ -96,11 +111,11 @@ class Database:
                     "category": result[1],
                     "budgeted_amount": result[2],
                     "starting_balance": result[3],
-                    "description": result[4]
+                    "description": result[4],
                 }
             return None
         except Exception as e:
-            print(f"Error getting envelope by ID: {e}")
+            logger.error(f"Error getting envelope by ID: {e}")
             raise
 
     def get_envelope_by_category(self, category):
@@ -108,7 +123,7 @@ class Database:
         try:
             result = self.conn.execute(
                 "SELECT id, category, budgeted_amount, starting_balance, description FROM envelopes WHERE category = ?;",
-                (category,)
+                (category,),
             ).fetchone()
             if result:
                 return {
@@ -116,11 +131,11 @@ class Database:
                     "category": result[1],
                     "budgeted_amount": result[2],
                     "starting_balance": result[3],
-                    "description": result[4]
+                    "description": result[4],
                 }
             return None
         except Exception as e:
-            print(f"Error getting envelope by category: {e}")
+            logger.error(f"Error getting envelope by category: {e}")
             raise
 
     def get_all_envelopes(self):
@@ -129,18 +144,28 @@ class Database:
             results = self.conn.execute(
                 "SELECT id, category, budgeted_amount, starting_balance, description FROM envelopes;"
             ).fetchall()
-            return [{
-                "id": r[0],
-                "category": r[1],
-                "budgeted_amount": r[2],
-                "starting_balance": r[3],
-                "description": r[4]
-            } for r in results]
+            return [
+                {
+                    "id": r[0],
+                    "category": r[1],
+                    "budgeted_amount": r[2],
+                    "starting_balance": r[3],
+                    "description": r[4],
+                }
+                for r in results
+            ]
         except Exception as e:
-            print(f"Error getting all envelopes: {e}")
+            logger.error(f"Error getting all envelopes: {e}")
             raise
 
-    def update_envelope(self, envelope_id, category=None, budgeted_amount=None, starting_balance=None, description=None):
+    def update_envelope(
+        self,
+        envelope_id,
+        category=None,
+        budgeted_amount=None,
+        starting_balance=None,
+        description=None,
+    ):
         """Updates an existing envelope."""
         updates = []
         params = []
@@ -158,7 +183,7 @@ class Database:
             params.append(description)
 
         if not updates:
-            return False # No fields to update
+            return False  # No fields to update
 
         params.append(envelope_id)
         query = f"UPDATE envelopes SET {', '.join(updates)} WHERE id = ?;"
@@ -171,7 +196,7 @@ class Database:
                 raise ValueError(f"Envelope with category '{category}' already exists.")
             raise
         except Exception as e:
-            print(f"Error updating envelope: {e}")
+            logger.error(f"Error updating envelope: {e}")
             raise
 
     def delete_envelope(self, envelope_id):
@@ -181,7 +206,7 @@ class Database:
             self.conn.commit()
             return True
         except Exception as e:
-            print(f"Error deleting envelope: {e}")
+            logger.error(f"Error deleting envelope: {e}")
             raise
 
     # --- Transaction CRUD Operations ---
@@ -190,17 +215,17 @@ class Database:
         try:
             result = self.conn.execute(
                 "INSERT INTO transactions (id, envelope_id, amount, description, date, type) VALUES (nextval('transactions_id_seq'), ?, ?, ?, ?, ?) RETURNING id;",
-                (envelope_id, amount, description, date, type)
+                (envelope_id, amount, description, date, type),
             ).fetchone()
             self.conn.commit()
             return result[0] if result else None
         except duckdb.ConstraintException as e:
-            if "violates foreign key constraint" in str(e).lower(): # More robust check
+            if "violates foreign key constraint" in str(e).lower():  # More robust check
                 raise ValueError(f"Envelope with ID {envelope_id} does not exist.")
             # Re-raise other constraint exceptions that are not FK violations
             raise
         except Exception as e:
-            print(f"Error inserting transaction: {e}")
+            logger.error(f"Error inserting transaction: {e}")
             raise
 
     def get_transaction_by_id(self, transaction_id):
@@ -208,7 +233,7 @@ class Database:
         try:
             result = self.conn.execute(
                 "SELECT id, envelope_id, amount, description, date, type FROM transactions WHERE id = ?;",
-                (transaction_id,)
+                (transaction_id,),
             ).fetchone()
             if result:
                 return {
@@ -216,12 +241,14 @@ class Database:
                     "envelope_id": result[1],
                     "amount": result[2],
                     "description": result[3],
-                    "date": result[4].isoformat() if isinstance(result[4], date) else result[4],
-                    "type": result[5]
+                    "date": result[4].isoformat()
+                    if isinstance(result[4], date)
+                    else result[4],
+                    "type": result[5],
                 }
             return None
         except Exception as e:
-            print(f"Error getting transaction by ID: {e}")
+            logger.error(f"Error getting transaction by ID: {e}")
             raise
 
     def get_transactions_for_envelope(self, envelope_id):
@@ -229,18 +256,21 @@ class Database:
         try:
             results = self.conn.execute(
                 "SELECT id, envelope_id, amount, description, date, type FROM transactions WHERE envelope_id = ? ORDER BY date DESC;",
-                (envelope_id,)
+                (envelope_id,),
             ).fetchall()
-            return [{
-                "id": r[0],
-                "envelope_id": r[1],
-                "amount": r[2],
-                "description": r[3],
-                "date": r[4].isoformat() if isinstance(r[4], date) else r[4],
-                "type": r[5]
-            } for r in results]
+            return [
+                {
+                    "id": r[0],
+                    "envelope_id": r[1],
+                    "amount": r[2],
+                    "description": r[3],
+                    "date": r[4].isoformat() if isinstance(r[4], date) else r[4],
+                    "type": r[5],
+                }
+                for r in results
+            ]
         except Exception as e:
-            print(f"Error getting transactions for envelope: {e}")
+            logger.error(f"Error getting transactions for envelope: {e}")
             raise
 
     def get_all_transactions(self):
@@ -249,19 +279,30 @@ class Database:
             results = self.conn.execute(
                 "SELECT id, envelope_id, amount, description, date, type FROM transactions ORDER BY date DESC;"
             ).fetchall()
-            return [{
-                "id": r[0],
-                "envelope_id": r[1],
-                "amount": r[2],
-                "description": r[3],
-                "date": r[4].isoformat() if isinstance(r[4], date) else r[4],
-                "type": r[5]
-            } for r in results]
+            return [
+                {
+                    "id": r[0],
+                    "envelope_id": r[1],
+                    "amount": r[2],
+                    "description": r[3],
+                    "date": r[4].isoformat() if isinstance(r[4], date) else r[4],
+                    "type": r[5],
+                }
+                for r in results
+            ]
         except Exception as e:
-            print(f"Error getting all transactions: {e}")
+            logger.error(f"Error getting all transactions: {e}")
             raise
 
-    def update_transaction(self, transaction_id, envelope_id=None, amount=None, description=None, date=None, type=None):
+    def update_transaction(
+        self,
+        transaction_id,
+        envelope_id=None,
+        amount=None,
+        description=None,
+        date=None,
+        type=None,
+    ):
         """Updates an existing transaction."""
         updates = []
         params = []
@@ -282,7 +323,7 @@ class Database:
             params.append(type)
 
         if not updates:
-            return False # No fields to update
+            return False  # No fields to update
 
         params.append(transaction_id)
         query = f"UPDATE transactions SET {', '.join(updates)} WHERE id = ?;"
@@ -295,17 +336,19 @@ class Database:
                 raise ValueError(f"Envelope with ID {envelope_id} does not exist.")
             raise
         except Exception as e:
-            print(f"Error updating transaction: {e}")
+            logger.error(f"Error updating transaction: {e}")
             raise
 
     def delete_transaction(self, transaction_id):
         """Deletes a transaction by its ID."""
         try:
-            self.conn.execute("DELETE FROM transactions WHERE id = ?;", (transaction_id,))
+            self.conn.execute(
+                "DELETE FROM transactions WHERE id = ?;", (transaction_id,)
+            )
             self.conn.commit()
             return True
         except Exception as e:
-            print(f"Error deleting transaction: {e}")
+            logger.error(f"Error deleting transaction: {e}")
             raise
 
     def get_envelope_current_balance(self, envelope_id):
@@ -315,16 +358,18 @@ class Database:
             if not envelope:
                 return None
 
-            starting_balance = envelope['starting_balance']
+            starting_balance = envelope["starting_balance"]
             transactions = self.get_transactions_for_envelope(envelope_id)
 
             current_balance = starting_balance
             for t in transactions:
-                if t['type'] == 'expense':
-                    current_balance -= t['amount']
-                elif t['type'] == 'income':
-                    current_balance += t['amount']
+                if t["type"] == "expense":
+                    current_balance -= t["amount"]
+                elif t["type"] == "income":
+                    current_balance += t["amount"]
             return current_balance
         except Exception as e:
-            print(f"Error calculating current balance for envelope {envelope_id}: {e}")
+            logger.error(
+                f"Error calculating current balance for envelope {envelope_id}: {e}"
+            )
             raise
