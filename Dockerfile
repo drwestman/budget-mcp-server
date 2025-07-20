@@ -7,7 +7,8 @@ COPY pyproject.toml uv.lock ./
 
 # Install uv and dependencies in one optimized layer
 RUN pip install --no-cache-dir uv && \
-    uv sync --no-dev --locked && \
+    UV_NO_SYNC=true uv sync --no-dev --locked --offline || \
+    UV_HTTP_TIMEOUT=60 uv sync --no-dev --locked && \
     rm -rf ~/.cache/uv
 
 # Copy application code
