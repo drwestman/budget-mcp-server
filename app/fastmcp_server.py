@@ -3,14 +3,17 @@
 FastMCP server implementation for Budget Cash Envelope MCP Server.
 """
 import os
+import logging
+import json
 from typing import Optional, Annotated
 from fastmcp import FastMCP
-import json
 
 from app.config import config
 from app.models.database import Database
 from app.services.envelope_service import EnvelopeService
 from app.services.transaction_service import TransactionService
+
+logger = logging.getLogger(__name__)
 
 
 def _configure_authentication(mcp: FastMCP, app_config, enable_auth: bool):
@@ -65,8 +68,9 @@ def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService):
             return f"Error: {str(e)}"
         except (TypeError, KeyError, AttributeError) as e:
             return f"Internal error: Data processing error: {str(e)}"
-        except Exception as e:
+        except Exception:
             # Log unexpected errors for debugging while providing safe user message
+            logger.exception("An unexpected error occurred in create_envelope")
             return "Internal error: An unexpected error occurred. Please contact support if the issue persists."
 
     @mcp.tool()
@@ -181,8 +185,9 @@ def _register_transaction_tools(mcp: FastMCP, transaction_service: TransactionSe
             return f"Error: {str(e)}"
         except (TypeError, KeyError, AttributeError) as e:
             return f"Internal error: Data processing error: {str(e)}"
-        except Exception as e:
+        except Exception:
             # Log unexpected errors for debugging while providing safe user message
+            logger.exception("An unexpected error occurred in create_transaction")
             return "Internal error: An unexpected error occurred. Please contact support if the issue persists."
 
     @mcp.tool()
@@ -197,7 +202,11 @@ def _register_transaction_tools(mcp: FastMCP, transaction_service: TransactionSe
             List of transactions.
         """
         try:
-            transactions = transaction_service.get_all_transactions(envelope_id)
+            transactions = (
+                transaction_service.get_transactions_by_envelope(envelope_id)
+                if envelope_id
+                else transaction_service.get_all_transactions()
+            )
             return json.dumps(transactions, indent=2)
         except (TypeError, KeyError, AttributeError) as e:
             return f"Internal error: Data processing error: {str(e)}"
@@ -309,7 +318,10 @@ def _register_utility_tools(mcp: FastMCP, envelope_service: EnvelopeService):
             # Calculate totals
             total_budget = sum(env.get("budgeted_amount", 0) for env in envelopes)
             total_balance = sum(env.get("current_balance", 0) for env in envelopes)
-            total_spent = sum(env.get("spent_amount", 0) for env in envelopes)
+            total_starting_balance = sum(
+                env.get("starting_balance", 0) for env in envelopes
+            )
+            total_spent = total_starting_balance - total_balance
 
             summary = {
                 "total_envelopes": len(envelopes),
