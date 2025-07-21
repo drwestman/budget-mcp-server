@@ -147,7 +147,10 @@ uv run python scripts/generate_cert.py
 
 2. **Configure environment:**
 ```bash
-# Set bearer token and enable HTTPS
+# Set bearer token and enable HTTPS (reads BEARER_TOKEN from .env if available)
+HTTPS_ENABLED=true uv run python run.py
+
+# Or set bearer token manually if needed
 BEARER_TOKEN=$(openssl rand -hex 32) HTTPS_ENABLED=true uv run python run.py
 ```
 
@@ -159,14 +162,20 @@ See [HTTPS_SETUP.md](HTTPS_SETUP.md) for detailed HTTPS configuration instructio
 
 #### Development Mode (Default)
 ```bash
-# Set bearer token and run development mode
-BEARER_TOKEN=$(openssl rand -hex 32) docker compose up -d --build
+# Docker automatically reads BEARER_TOKEN from .env file
+docker compose up budget-mcp-server-dev
+
+# Or set bearer token manually if needed
+BEARER_TOKEN=$(openssl rand -hex 32) docker compose up budget-mcp-server-dev
 ```
 
 #### Production Mode
 ```bash
-# Set bearer token and run production mode
-BEARER_TOKEN=$(openssl rand -hex 32) docker compose --profile prod up -d --build
+# Docker automatically reads BEARER_TOKEN from .env file
+docker compose --profile prod up budget-mcp-server
+
+# Or set bearer token manually if needed
+BEARER_TOKEN=$(openssl rand -hex 32) docker compose --profile prod up budget-mcp-server
 ```
 
 ## Integration with AI Assistants
@@ -178,9 +187,12 @@ This MCP server supports both modern HTTP transport and legacy stdio transport f
 The server runs with Streamable HTTP transport by default, making it accessible via HTTP:
 
 ```bash
-# Set bearer token (required) and run server
-BEARER_TOKEN=$(openssl rand -hex 32) python run.py
+# Run server (reads BEARER_TOKEN from .env file automatically)
+python run.py
 # Server available at: http://127.0.0.1:8000/mcp
+
+# Or set bearer token manually if needed
+BEARER_TOKEN=$(openssl rand -hex 32) python run.py
 ```
 
 **Client Authentication:**
@@ -195,6 +207,8 @@ curl -H "Authorization: Bearer your-token-here" \
 
 **Environment Variables:**
 - `BEARER_TOKEN`: **REQUIRED** - Bearer token for HTTP authentication (generate with `openssl rand -hex 32`)
+  - Can be set in `.env` file or as environment variable
+  - Docker Compose automatically reads from `.env` file
 - `HOST`: Server host (default: 127.0.0.1) - the address the server will bind to.
 - `PORT`: Server port (default: 8000) - the TCP port for HTTP transport.
 - `MCP_PATH`: MCP endpoint path (default: /mcp) - the HTTP path where the MCP endpoint is exposed.

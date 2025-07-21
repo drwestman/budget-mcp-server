@@ -5,22 +5,21 @@ services:
     container_name: budget-mcp-server
     profiles:
       - prod
+    command: >
+      bash -c "uv run python3 run.py"
     environment:
       - APP_ENV=production
       - DATABASE_FILE=/app/data/budget_app.duckdb
       - HOST=0.0.0.0
-      - PORT=8443
+      - PORT=8000
       - MCP_PATH=/mcp
       - HTTPS_ENABLED=true
-      - SSL_CERT_FILE=/app/certs/server.crt
-      - SSL_KEY_FILE=/app/certs/server.key
+      - BEARER_TOKEN=${BEARER_TOKEN}
     ports:
-      - "8000:8000"
-      - "8443:8443"  # HTTPS port
+      - "8000:8000"  # HTTP port
     volumes:
       - budget_data:/app/data
-      - budget_certs:/app/certs  # SSL certificates volume
-      - ./certs:/app/certs  # Mount host certificates directory
+      - ./certs:/app/certs:ro
     restart: unless-stopped
     networks:
       - default
@@ -29,22 +28,25 @@ services:
     build: .
     image: budget-mcp-server:dev
     container_name: budget-mcp-server-dev
+    profiles:
+      - dev
+    command: >
+      bash -c "if [ -f /usr/local/share/ca-certificates/server.crt ]; then update-ca-certificates; fi && uv run python3 run.py"
     environment:
       - APP_ENV=development
       - DATABASE_FILE=/app/data/budget_app.duckdb
       - HOST=0.0.0.0
-      - PORT=8443
+      - PORT=8000
       - MCP_PATH=/mcp
-      - HTTPS_ENABLED=true
-      - SSL_CERT_FILE=/app/certs/server.crt
+      - HTTPS_ENABLED=false
       - SSL_KEY_FILE=/app/certs/server.key
+      - BEARER_TOKEN=${BEARER_TOKEN}
     ports:
       - "8000:8000"
-      - "8443:8443"  # HTTPS port
     volumes:
       - budget_data:/app/data
-      - budget_certs:/app/certs  # SSL certificates volume
-      - ./certs:/app/certs  # Mount host certificates directory
+      - ./certs/server.crt:/usr/local/share/ca-certificates/server.crt:ro
+      - ./certs/server.key:/app/certs/server.key:ro
       - .:/app
     restart: unless-stopped
     networks:
@@ -52,7 +54,6 @@ services:
 
 volumes:
   budget_data:
-  budget_certs:
 
 networks:
   default:
