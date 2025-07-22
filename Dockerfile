@@ -18,9 +18,10 @@ COPY scripts/ ./scripts/
 
 ENV APP_ENV=production
 
-# Install OpenSSL for certificate generation
+# Install OpenSSL and update CA certificates
 RUN apt-get update && \
-    apt-get install -y openssl && \
+    apt-get install -y openssl ca-certificates && \
+    update-ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
