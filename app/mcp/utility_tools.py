@@ -122,3 +122,58 @@ class UtilityTools:
                     text=f"Internal error: An unexpected error occurred: {str(e)}",
                 )
             ]
+
+    @register
+    async def get_cloud_status(self) -> list[TextContent]:
+        """Get MotherDuck cloud connection status and sync information."""
+        try:
+            status = self.database.get_connection_status()
+            sync_status = self.database.get_sync_status()
+            
+            result = {
+                "connection": status,
+                "sync": sync_status
+            }
+            return [TextContent(type="text", text=json.dumps(result, indent=2))]
+        except Exception as e:
+            logger.exception("An internal error occurred in get_cloud_status")
+            return [
+                TextContent(
+                    type="text",
+                    text=f"Internal error: An unexpected error occurred: {str(e)}",
+                )
+            ]
+
+    @register
+    async def sync_to_cloud(self) -> list[TextContent]:
+        """Synchronize local data to MotherDuck cloud database."""
+        try:
+            results = self.database.sync_to_cloud()
+            return [TextContent(type="text", text=json.dumps(results, indent=2))]
+        except ValueError as e:
+            return [TextContent(type="text", text=f"Error: {str(e)}")]
+        except Exception as e:
+            logger.exception("An internal error occurred in sync_to_cloud")
+            return [
+                TextContent(
+                    type="text",
+                    text=f"Internal error: An unexpected error occurred: {str(e)}",
+                )
+            ]
+
+    @register
+    async def sync_from_cloud(self) -> list[TextContent]:
+        """Synchronize data from MotherDuck cloud to local database."""
+        try:
+            results = self.database.sync_from_cloud()
+            return [TextContent(type="text", text=json.dumps(results, indent=2))]
+        except ValueError as e:
+            return [TextContent(type="text", text=f"Error: {str(e)}")]
+        except Exception as e:
+            logger.exception("An internal error occurred in sync_from_cloud")
+            return [
+                TextContent(
+                    type="text",
+                    text=f"Internal error: An unexpected error occurred: {str(e)}",
+                )
+            ]

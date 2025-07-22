@@ -336,6 +336,55 @@ def _register_utility_tools(mcp: FastMCP, envelope_service: EnvelopeService):
         except Exception as e:
             return f"Internal error: An unexpected error occurred: {str(e)}"
 
+    @mcp.tool()
+    async def get_cloud_status() -> str:
+        """Get MotherDuck cloud connection status and sync information.
+
+        Returns:
+            Cloud connection status and sync information.
+        """
+        try:
+            status = envelope_service.db.get_connection_status()
+            sync_status = envelope_service.db.get_sync_status()
+            
+            result = {
+                "connection": status,
+                "sync": sync_status
+            }
+            return json.dumps(result, indent=2)
+        except Exception as e:
+            return f"Internal error: An unexpected error occurred: {str(e)}"
+
+    @mcp.tool()
+    async def sync_to_cloud() -> str:
+        """Synchronize local data to MotherDuck cloud database.
+
+        Returns:
+            Results of the sync operation.
+        """
+        try:
+            results = envelope_service.db.sync_to_cloud()
+            return json.dumps(results, indent=2)
+        except ValueError as e:
+            return f"Error: {str(e)}"
+        except Exception as e:
+            return f"Internal error: An unexpected error occurred: {str(e)}"
+
+    @mcp.tool()
+    async def sync_from_cloud() -> str:
+        """Synchronize data from MotherDuck cloud to local database.
+
+        Returns:
+            Results of the sync operation.
+        """
+        try:
+            results = envelope_service.db.sync_from_cloud()
+            return json.dumps(results, indent=2)
+        except ValueError as e:
+            return f"Error: {str(e)}"
+        except Exception as e:
+            return f"Internal error: An unexpected error occurred: {str(e)}"
+
 
 def create_fastmcp_server(config_name=None, enable_auth=True):
     """
@@ -353,8 +402,26 @@ def create_fastmcp_server(config_name=None, enable_auth=True):
     # Get configuration
     app_config = config[config_name]()
 
-    # Initialize database and services
-    db = Database(app_config.DATABASE_FILE)
+    # Validate MotherDuck configuration
+    is_valid, error_msg = app_config.validate_motherduck_config()
+    if not is_valid:
+        logger.error(f"MotherDuck configuration error: {error_msg}")
+        raise ValueError(f"MotherDuck configuration error: {error_msg}")
+
+    # Prepare MotherDuck configuration
+    motherduck_config = None
+    if app_config.MOTHERDUCK_TOKEN:
+        motherduck_config = {
+            'token': app_config.MOTHERDUCK_TOKEN,
+            'database': app_config.MOTHERDUCK_DATABASE
+        }
+
+    # Initialize database and services with MotherDuck support
+    db = Database(
+        db_path=app_config.DATABASE_FILE,
+        mode=app_config.DATABASE_MODE,
+        motherduck_config=motherduck_config
+    )
     envelope_service = EnvelopeService(db)
     transaction_service = TransactionService(db)
 

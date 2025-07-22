@@ -33,8 +33,26 @@ def create_mcp_server(config_name=None):
     # Get configuration
     app_config = config[config_name]()
 
-    # Initialize database and services
-    db = Database(app_config.DATABASE_FILE)
+    # Validate MotherDuck configuration
+    is_valid, error_msg = app_config.validate_motherduck_config()
+    if not is_valid:
+        print(f"MotherDuck configuration error: {error_msg}")
+        raise ValueError(f"MotherDuck configuration error: {error_msg}")
+
+    # Prepare MotherDuck configuration
+    motherduck_config = None
+    if app_config.MOTHERDUCK_TOKEN:
+        motherduck_config = {
+            'token': app_config.MOTHERDUCK_TOKEN,
+            'database': app_config.MOTHERDUCK_DATABASE
+        }
+
+    # Initialize database and services with MotherDuck support
+    db = Database(
+        db_path=app_config.DATABASE_FILE,
+        mode=app_config.DATABASE_MODE,
+        motherduck_config=motherduck_config
+    )
     envelope_service = EnvelopeService(db)
     transaction_service = TransactionService(db)
 
