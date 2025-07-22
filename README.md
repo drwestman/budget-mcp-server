@@ -56,9 +56,15 @@ uvx --from . budget-mcp-server
 - No manual Python environment setup required
 
 **Environment Configuration:**
-- `APP_ENV`: Set to 'production', 'development', or 'testing' (default: development)
+- `APP_ENV`: Set to 'production', 'development', or 'testing' (default: **production** for uvx)
 - Database file location: `budget_app.duckdb` in current directory
-- In development mode, database persists between runs
+- In production mode, database persists between runs (no automatic reset)
+
+**MotherDuck Cloud Integration (Optional):**
+- `MOTHERDUCK_TOKEN`: MotherDuck access token for cloud database integration
+- `MOTHERDUCK_DATABASE`: Cloud database name (default: "budget_app")
+- `DATABASE_MODE`: Connection mode - "local" (default), "cloud", or "hybrid"
+- `MOTHERDUCK_SYNC_ON_START`: Auto-sync local data to cloud on startup (default: false)
 
 ### Development Installation
 

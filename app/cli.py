@@ -13,7 +13,8 @@ from app import create_mcp_server
 async def run_stdio():
     """Run the MCP server with stdio transport."""
     # Get configuration environment from environment variable
-    config_name = os.getenv("APP_ENV", "development")
+    # Default to production for uvx installation
+    config_name = os.getenv("APP_ENV", "production")
 
     # Ensure data directory exists for database file
     from app.config import Config
