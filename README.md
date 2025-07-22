@@ -290,17 +290,54 @@ Add the following to your Claude Desktop configuration file:
 **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
 
+#### Option A: Using uvx (Recommended)
+```json
+{
+  "mcpServers": {
+    "budget-envelope": {
+      "command": "uvx",
+      "args": [
+        "--from", "git+https://github.com/drwestman/budget-mcp-server", 
+        "budget-mcp-server"
+      ],
+      "env": {
+        "MOTHERDUCK_TOKEN": "your-motherduck-token-here",
+        "MOTHERDUCK_DATABASE": "budget_app",
+        "DATABASE_MODE": "cloud",
+        "MOTHERDUCK_SYNC_ON_START": "true",
+        "APP_ENV": "production"
+      }
+    }
+  }
+}
+```
+
+#### Option B: Local Development Setup
 ```json
 {
   "mcpServers": {
     "budget-envelope": {
       "command": "uv",
-      "args": ["run", "python", "${PWD}/run_stdio.py"],
-      "cwd": "/path/to/budget-mcp-server"
+      "args": ["run", "python", "run_stdio.py"],
+      "cwd": "/path/to/budget-mcp-server",
+      "env": {
+        "MOTHERDUCK_TOKEN": "your-motherduck-token-here",
+        "MOTHERDUCK_DATABASE": "budget_app", 
+        "DATABASE_MODE": "hybrid",
+        "MOTHERDUCK_SYNC_ON_START": "false",
+        "APP_ENV": "production"
+      }
     }
   }
 }
 ```
+
+#### Environment Variables for Claude Desktop:
+- **`MOTHERDUCK_TOKEN`**: Your MotherDuck access token (get from [motherduck.com](https://motherduck.com/))
+- **`MOTHERDUCK_DATABASE`**: Cloud database name (default: "budget_app")
+- **`DATABASE_MODE`**: Connection mode - "local" (default), "cloud", or "hybrid"
+- **`MOTHERDUCK_SYNC_ON_START`**: Auto-sync local data to cloud on startup ("true" or "false")
+- **`APP_ENV`**: Set to "production" for Claude Desktop (prevents database resets)
 
 **🔓 Note**: stdio transport does not require bearer token authentication as it operates over standard input/output streams, not HTTP.
 
