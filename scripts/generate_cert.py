@@ -11,13 +11,14 @@ import sys
 from pathlib import Path
 
 
-def generate_self_signed_cert(cert_dir="certs", days=365):
+def generate_self_signed_cert(cert_dir="certs", days=365, hostname=None):
     """
     Generate self-signed SSL certificate and private key.
     
     Args:
         cert_dir (str): Directory to store certificate files
         days (int): Certificate validity period in days
+        hostname (str): Hostname to include in certificate (defaults to localhost)
     """
     # Create certificates directory
     cert_path = Path(cert_dir)
@@ -25,9 +26,43 @@ def generate_self_signed_cert(cert_dir="certs", days=365):
     
     key_file = cert_path / "server.key"
     cert_file = cert_path / "server.crt"
+    config_file = cert_path / "cert.conf"
+    
+    # Use provided hostname or default to localhost
+    if hostname is None:
+        hostname = "localhost"
     
     print(f"Generating self-signed SSL certificate in {cert_dir}/")
     print(f"Certificate will be valid for {days} days")
+    print(f"Certificate hostname: {hostname}")
+    
+    # Create OpenSSL config for SAN extensions
+    san_config = f"""[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+C = US
+ST = Dev
+L = Dev
+O = Budget MCP Server
+CN = {hostname}
+
+[v3_req]
+keyUsage = keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = {hostname}
+DNS.2 = localhost
+IP.1 = 127.0.0.1
+"""
+    
+    # Write config file
+    with open(config_file, 'w') as f:
+        f.write(san_config)
     
     # Generate private key and certificate using openssl
     try:
@@ -38,14 +73,18 @@ def generate_self_signed_cert(cert_dir="certs", days=365):
             "2048"
         ], check=True, capture_output=True)
         
-        # Generate self-signed certificate
+        # Generate self-signed certificate with SAN
         subprocess.run([
             "openssl", "req", "-new", "-x509",
             "-key", str(key_file),
             "-out", str(cert_file),
             "-days", str(days),
-            "-subj", "/C=US/ST=Dev/L=Dev/O=Budget MCP Server/CN=localhost"
+            "-config", str(config_file),
+            "-extensions", "v3_req"
         ], check=True, capture_output=True)
+        
+        # Clean up config file
+        config_file.unlink()
         
         print(f"✓ Private key generated: {key_file}")
         print(f"✓ Certificate generated: {cert_file}")
@@ -81,10 +120,12 @@ def main():
                        help="Directory to store certificate files (default: certs)")
     parser.add_argument("--days", type=int, default=365,
                        help="Certificate validity period in days (default: 365)")
+    parser.add_argument("--hostname", 
+                       help="Hostname to include in certificate (default: localhost)")
     
     args = parser.parse_args()
     
-    generate_self_signed_cert(args.cert_dir, args.days)
+    generate_self_signed_cert(args.cert_dir, args.days, args.hostname)
 
 
 if __name__ == "__main__":

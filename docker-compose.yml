@@ -11,12 +11,12 @@ services:
       - APP_ENV=production
       - DATABASE_FILE=/app/data/budget_app.duckdb
       - HOST=0.0.0.0
-      - PORT=8000
+      - PORT=8443
       - MCP_PATH=/mcp
       - HTTPS_ENABLED=true
       - BEARER_TOKEN=${BEARER_TOKEN}
     ports:
-      - "8000:8000"  # HTTP port
+      - "8443:8443"  # HTTPS port
     volumes:
       - budget_data:/app/data
       - ./certs:/app/certs:ro
@@ -42,7 +42,7 @@ services:
       - SSL_KEY_FILE=/app/certs/server.key
       - BEARER_TOKEN=${BEARER_TOKEN}
     ports:
-      - "8000:8000"
+      - "8000:8000"  # HTTP port
     volumes:
       - budget_data:/app/data
       - ./certs/server.crt:/usr/local/share/ca-certificates/server.crt:ro
