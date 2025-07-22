@@ -36,7 +36,7 @@ class Config:
         Validate MotherDuck token format.
         
         Args:
-            token (str): MotherDuck access token
+            token (str): MotherDuck access token (JWT or legacy hex format)
             
         Returns:
             bool: True if token appears valid, False otherwise
@@ -44,8 +44,16 @@ class Config:
         if not token:
             return False
         
-        # Basic validation: MotherDuck tokens are typically 32+ character hex strings
-        # This is a basic format check, not a comprehensive validation
+        # Check for JWT format (starts with eyJ)
+        if token.startswith('eyJ'):
+            # Basic JWT validation - should have 3 parts separated by dots
+            parts = token.split('.')
+            if len(parts) != 3:
+                return False
+            # Ensure minimum length for each part
+            return all(len(part) > 0 for part in parts)
+        
+        # Legacy format validation: 32+ character hex strings
         if len(token) < 32:
             return False
             
@@ -89,7 +97,7 @@ class Config:
                 return False, f"MOTHERDUCK_TOKEN is required for DATABASE_MODE '{mode}'"
             
             if not cls.validate_motherduck_token(token):
-                return False, "MOTHERDUCK_TOKEN appears to be invalid (should be 32+ character hex string)"
+                return False, "MOTHERDUCK_TOKEN appears to be invalid (should be JWT token or 32+ character hex string)"
         
         return True, None
 
