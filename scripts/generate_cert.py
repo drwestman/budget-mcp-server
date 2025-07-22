@@ -37,6 +37,11 @@ def generate_self_signed_cert(cert_dir="certs", days=365, hostname=None):
     print(f"Certificate hostname: {hostname}")
     
     # Create OpenSSL config for SAN extensions
+    alt_names = [f"DNS.1 = {hostname}"]
+    if hostname != "localhost":
+        alt_names.append("DNS.2 = localhost")
+    alt_names.append("IP.1 = 127.0.0.1")
+    
     san_config = f"""[req]
 distinguished_name = req_distinguished_name
 req_extensions = v3_req
@@ -55,9 +60,7 @@ extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = {hostname}
-DNS.2 = localhost
-IP.1 = 127.0.0.1
+{chr(10).join(alt_names)}
 """
     
     # Write config file
@@ -83,8 +86,10 @@ IP.1 = 127.0.0.1
             "-extensions", "v3_req"
         ], check=True, capture_output=True)
         
+    finally:
         # Clean up config file
-        config_file.unlink()
+        if config_file.exists():
+            config_file.unlink()
         
         print(f"✓ Private key generated: {key_file}")
         print(f"✓ Certificate generated: {cert_file}")

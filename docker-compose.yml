@@ -45,8 +45,8 @@ services:
       - "8000:8000"  # HTTP port
     volumes:
       - budget_data:/app/data
+      - ./certs:/app/certs:ro
       - ./certs/server.crt:/usr/local/share/ca-certificates/server.crt:ro
-      - ./certs/server.key:/app/certs/server.key:ro
       - .:/app
     restart: unless-stopped
     networks:
