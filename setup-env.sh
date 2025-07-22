@@ -327,7 +327,7 @@ print_info "=== Next Steps ==="
 echo "1. Review the generated .env file"
 echo "2. Install dependencies: uv sync"
 echo "3. Start the server: python3 run.py"
-echo "4. For stdio transport (legacy): python3 run_stdio.py"
+echo "4. For stdio transport: python3 run_stdio.py"
 
 if [ "$APP_ENV" = "development" ]; then
     echo
