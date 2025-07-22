@@ -9,13 +9,16 @@ The [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) is an open 
 ## Features
 
 - **AI Agent Integration**: Designed for seamless integration with AI assistants via MCP
-- **Dual Transport Support**: FastMCP with Streamable HTTP transport + legacy stdio transport
+- **Dual Transport Support**: FastMCP with Streamable HTTP transport + stdio transport
 - **Web-Accessible**: HTTP endpoint for modern MCP clients and web integrations
 - **Bearer Token Authentication**: Secure HTTP transport with configurable token-based authentication
+- **MotherDuck Cloud Integration**: Seamless cloud database connectivity with local/cloud/hybrid modes
+- **Cloud Data Synchronization**: Bidirectional sync between local DuckDB and MotherDuck cloud
+- **Multi-Environment Support**: Local-first, cloud-first, or hybrid database workflows
 - **Cash Envelope Budgeting**: Create and manage budget categories with allocated amounts
 - **Transaction Management**: Track income and expense transactions against budget envelopes
 - **Real-time Balance Tracking**: Monitor current balances and budget summaries
-- **Lightweight Database**: Uses DuckDB for fast, embedded database operations
+- **Lightweight Database**: Uses DuckDB for fast, embedded database operations with optional cloud storage
 - **Modern Python Tooling**: Built with FastMCP (>=2.3.0) and uv for fast, reliable development
 - **HTTPS Support**: Optional SSL/TLS encryption with self-signed certificates for development
 - **Docker Support**: Containerized deployment for development and production
@@ -25,7 +28,8 @@ The [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) is an open 
 - **Runtime**: Python 3.12+
 - **MCP Framework**: FastMCP with Streamable HTTP transport
 - **Protocol**: Model Context Protocol (MCP)
-- **Database**: DuckDB
+- **Database**: DuckDB with MotherDuck cloud integration
+- **Cloud Platform**: MotherDuck (cloud-native DuckDB service)
 - **Package Management**: uv
 - **Testing**: pytest
 - **Containerization**: Docker, Docker Compose
@@ -88,6 +92,7 @@ The script will guide you through:
 - **Environment Selection**: Choose development, production, or testing
 - **Database Configuration**: Set database file path with environment-specific defaults
 - **Authentication Setup**: Auto-generate secure bearer token or provide custom token
+- **MotherDuck Integration**: Configure cloud database connectivity and sync options
 - **Server Configuration**: Configure host, port, and MCP endpoint path
 - **HTTPS Configuration**: Optionally enable HTTPS with SSL certificate setup
 - **Certificate Generation**: Generate self-signed certificates if needed
@@ -112,6 +117,12 @@ echo "HOST=127.0.0.1" >> .env
 echo "PORT=8000" >> .env
 echo "MCP_PATH=/mcp" >> .env
 echo "HTTPS_ENABLED=false" >> .env
+
+# Optional: Configure MotherDuck cloud integration
+echo "MOTHERDUCK_TOKEN=your-motherduck-token" >> .env
+echo "MOTHERDUCK_DATABASE=budget_app" >> .env
+echo "DATABASE_MODE=local" >> .env  # Options: local, cloud, hybrid
+echo "MOTHERDUCK_SYNC_ON_START=false" >> .env
 ```
 
 4. Run the server:
@@ -158,6 +169,51 @@ The server will be available at `https://127.0.0.1:8000/mcp`
 
 See [HTTPS_SETUP.md](HTTPS_SETUP.md) for detailed HTTPS configuration instructions.
 
+### MotherDuck Cloud Integration Setup
+
+MotherDuck extends DuckDB with cloud storage, sharing, and analytics capabilities. The server supports three database modes:
+
+#### Database Modes
+
+1. **Local Mode** (Default): Standard DuckDB file storage
+2. **Cloud Mode**: Pure MotherDuck cloud database  
+3. **Hybrid Mode**: Local DuckDB with MotherDuck attachment for cross-database operations
+
+#### Quick Setup
+
+**Option A: Interactive Setup (Recommended)**
+```bash
+# Run setup script and configure MotherDuck when prompted
+./setup-env.sh
+```
+
+**Option B: Manual Configuration**
+```bash
+# Get your MotherDuck token from: https://motherduck.com/
+export MOTHERDUCK_TOKEN="your-motherduck-token"
+export MOTHERDUCK_DATABASE="budget_app"
+export DATABASE_MODE="cloud"  # or "hybrid" for local+cloud
+export MOTHERDUCK_SYNC_ON_START="true"  # Auto-sync on startup
+
+# Run with cloud database
+uv run python run.py
+```
+
+#### Configuration Options
+
+- **`MOTHERDUCK_TOKEN`**: Your MotherDuck access token (required for cloud/hybrid modes)
+- **`MOTHERDUCK_DATABASE`**: Cloud database name (default: "budget_app")
+- **`DATABASE_MODE`**: Connection mode - "local", "cloud", or "hybrid" (default: "local")
+- **`MOTHERDUCK_SYNC_ON_START`**: Auto-sync local data to cloud on startup (default: false)
+
+#### Getting Started with MotherDuck
+
+1. **Sign up**: Create account at [motherduck.com](https://motherduck.com/)
+2. **Get token**: Generate access token in MotherDuck console
+3. **Configure**: Run `./setup-env.sh` and select MotherDuck integration
+4. **Choose mode**: Select local/cloud/hybrid based on your needs
+5. **Sync data**: Use cloud-specific tools to sync existing data
+
 ### Docker Setup
 
 #### Development Mode (Default)
@@ -180,7 +236,7 @@ BEARER_TOKEN=$(openssl rand -hex 32) docker compose --profile prod up budget-mcp
 
 ## Integration with AI Assistants
 
-This MCP server supports both modern HTTP transport and legacy stdio transport for maximum compatibility.
+This MCP server supports both modern HTTP transport and stdio transport for maximum compatibility.
 
 ### FastMCP HTTP Integration (Recommended)
 
@@ -216,8 +272,10 @@ curl -H "Authorization: Bearer your-token-here" \
 - `HTTPS_ENABLED`: Enable HTTPS mode (default: false) - set to 'true' to enable SSL/TLS encryption.
 - `SSL_CERT_FILE`: Path to SSL certificate file (default: certs/server.crt) - PEM format certificate file.
 - `SSL_KEY_FILE`: Path to SSL private key file (default: certs/server.key) - PEM format private key file.
+- `MOTHERDUCK_TOKEN`: MotherDuck access token (optional) - for cloud database integration.
+- `DATABASE_MODE`: Database mode (default: local) - options: "local", "cloud", "hybrid".
 
-### Claude Desktop Integration (Legacy stdio)
+### Claude Desktop Integration (stdio)
 
 For Claude Desktop, use the stdio transport mode:
 
@@ -248,7 +306,7 @@ Connect to `http://127.0.0.1:8000/mcp` using any HTTP MCP client with bearer tok
 **HTTPS Transport (Secure):**
 Connect to `https://127.0.0.1:8000/mcp` when HTTPS is enabled (requires certificate configuration and bearer token)
 
-**stdio Transport (Legacy):**
+**stdio Transport:**
 Run `run_stdio.py` and connect to its stdin/stdout streams (no authentication required)
 
 ## Security & Authentication
@@ -322,6 +380,15 @@ The server provides the following tools for AI agents:
   - Parameters: `envelope_id` (number)
 - **`get_budget_summary`** - Get comprehensive budget overview with all envelopes and balances
 
+### Cloud Integration Tools
+- **`get_cloud_status`** - Get MotherDuck connection and synchronization status
+  - Returns: Database mode, connection status, sync information
+- **`sync_to_cloud`** - Synchronize local data to MotherDuck cloud database
+  - Uploads all envelopes and transactions to cloud
+- **`sync_from_cloud`** - Synchronize cloud data to local database
+  - Downloads all envelopes and transactions from cloud
+  - Handles conflicts using INSERT OR REPLACE strategy
+
 ## Usage Examples
 
 Once integrated with an AI assistant, you can interact with your budget using natural language:
@@ -345,6 +412,20 @@ The AI will use the `get_envelope_balance` tool to check your current balance.
 > "Show me a summary of all my budget categories and balances"
 
 The AI will use the `get_budget_summary` tool to provide a comprehensive overview.
+
+### Cloud Integration Examples
+
+> "Sync my budget data to the cloud"
+
+The AI will use the `sync_to_cloud` tool to upload all local envelopes and transactions to MotherDuck.
+
+> "Download my budget from the cloud to this device"
+
+The AI will use the `sync_from_cloud` tool to download cloud data to the local database.
+
+> "What's my cloud connection status?"
+
+The AI will use the `get_cloud_status` tool to show MotherDuck connectivity, database mode, and sync information.
 
 ## Database Schema
 
@@ -396,7 +477,7 @@ budget-mcp-server/
 │   ├── __init__.py              # Test module initialization
 │   ├── conftest.py              # Pytest configuration and fixtures
 │   ├── test_fastmcp_tools.py    # FastMCP transport tests
-│   ├── test_mcp_tools.py        # Legacy stdio transport tests
+│   ├── test_mcp_tools.py        # stdio transport tests
 │   ├── test_auth.py             # Bearer token middleware tests ✅ NEW
 │   ├── test_fastmcp_auth.py     # FastMCP server authentication tests ✅ NEW
 │   ├── test_config_auth.py      # Configuration & startup validation tests ✅ NEW
@@ -411,7 +492,7 @@ budget-mcp-server/
 ├── data/                        # Database files directory
 ├── setup-env.sh                 # Interactive environment setup script ✅ NEW
 ├── run.py                       # FastMCP server entry point (HTTP/HTTPS with auth)
-├── run_stdio.py                 # Legacy MCP server entry point (stdio, no auth)
+├── run_stdio.py                 # MCP server entry point (stdio, no auth)
 ├── ApplicationStructure.md      # Detailed application architecture documentation
 ├── CLAUDE.md                    # Claude Code instructions and project guidance
 ├── HTTPS_SETUP.md              # Detailed HTTPS configuration guide
@@ -433,7 +514,7 @@ uv run pytest
 uv run pytest tests/test_fastmcp_tools.py
 ```
 
-**Legacy tests (stdio transport):**
+**stdio transport tests:**
 ```bash
 uv run pytest tests/test_mcp_tools.py
 ```
@@ -469,6 +550,12 @@ uv run pytest tests/test_config_auth.py
 - `HTTPS_ENABLED`: Enable HTTPS mode (default: false) - set to 'true' to enable SSL/TLS encryption.
 - `SSL_CERT_FILE`: Path to SSL certificate file (default: certs/server.crt) - PEM format certificate file.
 - `SSL_KEY_FILE`: Path to SSL private key file (default: certs/server.key) - PEM format private key file.
+
+**MotherDuck Cloud Configuration:**
+- `MOTHERDUCK_TOKEN`: MotherDuck access token (required for cloud/hybrid modes) - generate from MotherDuck console.
+- `MOTHERDUCK_DATABASE`: Cloud database name (default: budget_app) - the name of your MotherDuck database.
+- `DATABASE_MODE`: Database connection mode (default: local) - options: "local", "cloud", "hybrid".
+- `MOTHERDUCK_SYNC_ON_START`: Auto-sync on startup (default: false) - set to 'true' to sync local data to cloud on server start.
 
 ### Configuration
 
