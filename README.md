@@ -63,7 +63,7 @@ uvx --from . budget-mcp-server
 **MotherDuck Cloud Integration (Optional):**
 - `MOTHERDUCK_TOKEN`: MotherDuck access token for cloud database integration
 - `MOTHERDUCK_DATABASE`: Cloud database name (default: "budget_app")
-- `DATABASE_MODE`: Connection mode - "local" (default), "cloud", or "hybrid"
+- `DATABASE_MODE`: Connection mode - "local", "cloud", or "hybrid" (default: "hybrid")
 - `MOTHERDUCK_SYNC_ON_START`: Auto-sync local data to cloud on startup (default: false)
 
 ### Development Installation
@@ -127,7 +127,7 @@ echo "HTTPS_ENABLED=false" >> .env
 # Optional: Configure MotherDuck cloud integration
 echo "MOTHERDUCK_TOKEN=your-motherduck-token" >> .env
 echo "MOTHERDUCK_DATABASE=budget_app" >> .env
-echo "DATABASE_MODE=local" >> .env  # Options: local, cloud, hybrid
+echo "DATABASE_MODE=hybrid" >> .env  # Options: local, cloud, hybrid (default)
 echo "MOTHERDUCK_SYNC_ON_START=false" >> .env
 ```
 
@@ -181,9 +181,9 @@ MotherDuck extends DuckDB with cloud storage, sharing, and analytics capabilitie
 
 #### Database Modes
 
-1. **Local Mode** (Default): Standard DuckDB file storage
+1. **Local Mode**: Standard DuckDB file storage
 2. **Cloud Mode**: Pure MotherDuck cloud database  
-3. **Hybrid Mode**: Local DuckDB with MotherDuck attachment for cross-database operations
+3. **Hybrid Mode** (Default): Local DuckDB with MotherDuck attachment for cross-database operations
 
 #### Quick Setup
 
@@ -209,7 +209,7 @@ uv run python run.py
 
 - **`MOTHERDUCK_TOKEN`**: Your MotherDuck access token (required for cloud/hybrid modes)
 - **`MOTHERDUCK_DATABASE`**: Cloud database name (default: "budget_app")
-- **`DATABASE_MODE`**: Connection mode - "local", "cloud", or "hybrid" (default: "local")
+- **`DATABASE_MODE`**: Connection mode - "local", "cloud", or "hybrid" (default: "hybrid")
 - **`MOTHERDUCK_SYNC_ON_START`**: Auto-sync local data to cloud on startup (default: false)
 
 #### Getting Started with MotherDuck
@@ -279,7 +279,7 @@ curl -H "Authorization: Bearer your-token-here" \
 - `SSL_CERT_FILE`: Path to SSL certificate file (default: certs/server.crt) - PEM format certificate file.
 - `SSL_KEY_FILE`: Path to SSL private key file (default: certs/server.key) - PEM format private key file.
 - `MOTHERDUCK_TOKEN`: MotherDuck access token (optional) - for cloud database integration.
-- `DATABASE_MODE`: Database mode (default: local) - options: "local", "cloud", "hybrid".
+- `DATABASE_MODE`: Database mode (default: hybrid) - options: "local", "cloud", "hybrid".
 
 ### Claude Desktop Integration (stdio)
 
@@ -335,7 +335,7 @@ Add the following to your Claude Desktop configuration file:
 #### Environment Variables for Claude Desktop:
 - **`MOTHERDUCK_TOKEN`**: Your MotherDuck access token (get from [motherduck.com](https://motherduck.com/))
 - **`MOTHERDUCK_DATABASE`**: Cloud database name (default: "budget_app")
-- **`DATABASE_MODE`**: Connection mode - "local" (default), "cloud", or "hybrid"
+- **`DATABASE_MODE`**: Connection mode - "local", "cloud", or "hybrid" (default: "hybrid")
 - **`MOTHERDUCK_SYNC_ON_START`**: Auto-sync local data to cloud on startup ("true" or "false")
 - **`APP_ENV`**: Set to "production" for Claude Desktop (prevents database resets)
 
@@ -597,7 +597,7 @@ uv run pytest tests/test_config_auth.py
 **MotherDuck Cloud Configuration:**
 - `MOTHERDUCK_TOKEN`: MotherDuck access token (required for cloud/hybrid modes) - generate from MotherDuck console.
 - `MOTHERDUCK_DATABASE`: Cloud database name (default: budget_app) - the name of your MotherDuck database.
-- `DATABASE_MODE`: Database connection mode (default: local) - options: "local", "cloud", "hybrid".
+- `DATABASE_MODE`: Database connection mode (default: hybrid) - options: "local", "cloud", "hybrid".
 - `MOTHERDUCK_SYNC_ON_START`: Auto-sync on startup (default: false) - set to 'true' to sync local data to cloud on server start.
 
 ### Configuration

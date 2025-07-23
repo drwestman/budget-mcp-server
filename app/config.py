@@ -18,7 +18,7 @@ class Config:
     # MotherDuck Configuration
     MOTHERDUCK_TOKEN = os.getenv("MOTHERDUCK_TOKEN")
     MOTHERDUCK_DATABASE = os.getenv("MOTHERDUCK_DATABASE", "budget_app")
-    DATABASE_MODE = os.getenv("DATABASE_MODE", "local")  # local, cloud, hybrid
+    DATABASE_MODE = os.getenv("DATABASE_MODE", "hybrid")  # local, cloud, hybrid
     MOTHERDUCK_SYNC_ON_START = os.getenv("MOTHERDUCK_SYNC_ON_START", "false").lower() == "true"
 
     @staticmethod

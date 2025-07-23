@@ -182,7 +182,7 @@ echo "  cloud  - Use MotherDuck cloud storage only"
 echo "  hybrid - Use local DuckDB with MotherDuck sync capability"
 echo
 
-prompt_with_default "Database mode (local/cloud/hybrid)" "local" "DATABASE_MODE"
+prompt_with_default "Database mode (local/cloud/hybrid)" "hybrid" "DATABASE_MODE"
 
 if [[ "$DATABASE_MODE" == "cloud" ]] || [[ "$DATABASE_MODE" == "hybrid" ]]; then
     echo
