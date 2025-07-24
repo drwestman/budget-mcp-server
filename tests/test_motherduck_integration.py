@@ -25,6 +25,10 @@ class TestMotherDuckConfiguration:
         token_with_specials = "abc123def456-789abc_012.def345abc"
         assert Config.validate_motherduck_token(token_with_specials) is True
 
+        # Test with a valid JWT token format
+        jwt_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.do_not_verify_signature"
+        assert Config.validate_motherduck_token(jwt_token) is True
+
     def test_validate_motherduck_token_invalid(self):
         """Test validation of invalid MotherDuck tokens."""
         # Test with None/empty

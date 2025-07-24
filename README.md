@@ -318,7 +318,7 @@ Add the following to your Claude Desktop configuration file:
   "mcpServers": {
     "budget-envelope": {
       "command": "uv",
-      "args": ["run", "python", "run_stdio.py"],
+      "args": ["run", "python", "app/cli.py"],
       "cwd": "/path/to/budget-mcp-server",
       "env": {
         "MOTHERDUCK_TOKEN": "your-motherduck-token-here",
@@ -350,7 +350,7 @@ Connect to `http://127.0.0.1:8000/mcp` using any HTTP MCP client with bearer tok
 Connect to `https://127.0.0.1:8000/mcp` when HTTPS is enabled (requires certificate configuration and bearer token)
 
 **stdio Transport:**
-Run `run_stdio.py` and connect to its stdin/stdout streams (no authentication required)
+Run `app/cli.py` and connect to its stdin/stdout streams (no authentication required)
 
 ## Security & Authentication
 
@@ -535,7 +535,7 @@ budget-mcp-server/
 ├── data/                        # Database files directory
 ├── setup-env.sh                 # Interactive environment setup script ✅ NEW
 ├── run.py                       # FastMCP server entry point (HTTP/HTTPS with auth)
-├── run_stdio.py                 # MCP server entry point (stdio, no auth)
+├── app/cli.py                   # MCP server entry point (stdio, no auth)
 ├── ApplicationStructure.md      # Detailed application architecture documentation
 ├── CLAUDE.md                    # Claude Code instructions and project guidance
 ├── HTTPS_SETUP.md              # Detailed HTTPS configuration guide

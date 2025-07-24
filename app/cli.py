@@ -50,7 +50,6 @@ def main():
         from mcp.server import Server
         from mcp.server.stdio import stdio_server
         from mcp.types import Tool, TextContent
-        import json
 
         async def run_hybrid_mcp_stdio():
             # Create a native MCP server
@@ -78,7 +77,7 @@ def main():
                 # Call the FastMCP tool and return result
                 if name in fastmcp_tools:
                     result = await fastmcp_tools[name].func(**arguments)
-                    return result
+                    return [TextContent(type="text", text=result)]
                 else:
                     return [TextContent(type="text", text=f"Tool {name} not found")]
             

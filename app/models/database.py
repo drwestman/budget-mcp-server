@@ -519,7 +519,6 @@ class Database:
             }
             
             # Get database name for cloud operations
-            cloud_db = self.motherduck_config.get('database', 'budget_app')
             
             # Sync envelopes
             try:
@@ -703,14 +702,14 @@ class Database:
                 cloud_envelopes = self.conn.execute(
                     "SELECT COUNT(*) FROM motherduck.main.envelopes"
                 ).fetchone()[0]
-            except:
+            except duckdb.Error:
                 cloud_envelopes = 0
                 
             try:
                 cloud_transactions = self.conn.execute(
                     "SELECT COUNT(*) FROM motherduck.main.transactions"
                 ).fetchone()[0]
-            except:
+            except duckdb.Error:
                 cloud_transactions = 0
             
             return {
