@@ -34,9 +34,7 @@ def main():
         # No authentication needed for stdio transport
         mcp = create_fastmcp_server(config_name, enable_auth=False)
 
-        # Initialize database tables after potential cleanup
-        mcp.db._connect()
-        mcp.db._create_tables()
+        # Database is already initialized by create_fastmcp_server
 
         # Print configuration info to stderr (not to interfere with MCP stdio)
         print(f"Environment: {config_name}", file=sys.stderr)

@@ -297,7 +297,7 @@ Add the following to your Claude Desktop configuration file:
     "budget-envelope": {
       "command": "uvx",
       "args": [
-        "--from", "git+https://github.com/drwestman/budget-mcp-server", 
+        "--from", "git+https://github.com/<OWNER>/<REPO>", 
         "budget-mcp-server"
       ],
       "env": {
