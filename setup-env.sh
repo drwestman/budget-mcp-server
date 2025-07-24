@@ -172,6 +172,58 @@ echo
 print_info "=== Database Configuration ==="
 prompt_with_default "Database file path" "$DATABASE_FILE_DEFAULT" "DATABASE_FILE"
 
+# MotherDuck configuration
+echo
+print_info "=== MotherDuck Cloud Configuration ==="
+print_info "MotherDuck provides cloud storage and analytics for your DuckDB data."
+echo "Database modes:"
+echo "  local  - Use local DuckDB file only"
+echo "  cloud  - Use MotherDuck cloud storage only"  
+echo "  hybrid - Use local DuckDB with MotherDuck sync capability"
+echo
+
+prompt_with_default "Database mode (local/cloud/hybrid)" "hybrid" "DATABASE_MODE"
+
+if [[ "$DATABASE_MODE" == "cloud" ]] || [[ "$DATABASE_MODE" == "hybrid" ]]; then
+    echo
+    print_info "MotherDuck token is required for cloud/hybrid modes."
+    print_info "Get your token from https://motherduck.com/docs/"
+    
+    prompt_with_default "MotherDuck access token" "" "MOTHERDUCK_TOKEN"
+    
+    if [ -z "$MOTHERDUCK_TOKEN" ]; then
+        print_error "MotherDuck token is required for $DATABASE_MODE mode."
+        print_info "Please obtain a token from MotherDuck and run this script again."
+        exit 1
+    fi
+    
+    # Validate token format (basic check)
+    if [ ${#MOTHERDUCK_TOKEN} -lt 32 ]; then
+        print_warning "Token seems short. MotherDuck tokens are typically 32+ characters."
+        read -p "Continue anyway? (y/n) [n]: " continue_short_token
+        continue_short_token=${continue_short_token:-n}
+        if [[ ! "$continue_short_token" =~ ^[Yy]$ ]]; then
+            print_info "Exiting. Please provide a valid MotherDuck token."
+            exit 1
+        fi
+    fi
+    
+    prompt_with_default "MotherDuck database name" "budget_app" "MOTHERDUCK_DATABASE"
+    
+    read -p "Enable automatic sync on server start? (y/n) [n]: " sync_on_start
+    sync_on_start=${sync_on_start:-n}
+    if [[ "$sync_on_start" =~ ^[Yy]$ ]]; then
+        MOTHERDUCK_SYNC_ON_START="true"
+    else
+        MOTHERDUCK_SYNC_ON_START="false"
+    fi
+else
+    # Set defaults for local mode
+    MOTHERDUCK_TOKEN=""
+    MOTHERDUCK_DATABASE="budget_app"
+    MOTHERDUCK_SYNC_ON_START="false"
+fi
+
 # Bearer token configuration
 echo
 print_info "=== Authentication Configuration ==="
@@ -229,6 +281,12 @@ APP_ENV="$APP_ENV"
 # Database Configuration
 DATABASE_FILE="$DATABASE_FILE"
 
+# MotherDuck Configuration
+DATABASE_MODE="$DATABASE_MODE"
+MOTHERDUCK_TOKEN="$MOTHERDUCK_TOKEN"
+MOTHERDUCK_DATABASE="$MOTHERDUCK_DATABASE"
+MOTHERDUCK_SYNC_ON_START="$MOTHERDUCK_SYNC_ON_START"
+
 # Authentication Configuration
 BEARER_TOKEN="$BEARER_TOKEN"
 
@@ -250,6 +308,12 @@ echo
 print_info "=== Configuration Summary ==="
 echo "Environment: $APP_ENV"
 echo "Database: $DATABASE_FILE"
+echo "Database Mode: $DATABASE_MODE"
+if [ "$DATABASE_MODE" != "local" ]; then
+    echo "MotherDuck Database: $MOTHERDUCK_DATABASE"
+    echo "MotherDuck Token: $([ -n "$MOTHERDUCK_TOKEN" ] && echo "${MOTHERDUCK_TOKEN:0:8}***" || echo "Not set")"
+    echo "Sync on Start: $MOTHERDUCK_SYNC_ON_START"
+fi
 echo "Authentication: $([ -n "$BEARER_TOKEN" ] && echo "Enabled" || echo "Disabled")"
 echo "Server: $HOST:$PORT$MCP_PATH"
 echo "HTTPS: $HTTPS_ENABLED"
@@ -263,7 +327,7 @@ print_info "=== Next Steps ==="
 echo "1. Review the generated .env file"
 echo "2. Install dependencies: uv sync"
 echo "3. Start the server: python3 run.py"
-echo "4. For stdio transport (legacy): python3 run_stdio.py"
+echo "4. For stdio transport: python3 app/cli.py"
 
 if [ "$APP_ENV" = "development" ]; then
     echo
@@ -287,6 +351,19 @@ if [ "$HTTPS_ENABLED" = "true" ]; then
     echo "- Self-signed certificates will show browser warnings"
     echo "- For production, use certificates from a trusted CA"
     echo "- Consider using a reverse proxy (nginx, traefik) for production HTTPS"
+fi
+
+if [ "$DATABASE_MODE" != "local" ]; then
+    echo
+    print_info "MotherDuck mode notes:"
+    echo "- Cloud mode: All data stored in MotherDuck (no local database file)"
+    echo "- Hybrid mode: Local database with cloud sync capabilities"
+    if [ "$DATABASE_MODE" == "hybrid" ]; then
+        echo "- Use sync_to_cloud and sync_from_cloud MCP tools for data synchronization"
+        echo "- Use get_cloud_status tool to check connection and sync status"
+    fi
+    echo "- MotherDuck provides enhanced analytics and sharing capabilities"
+    echo "- Requires active internet connection for cloud operations"
 fi
 
 echo

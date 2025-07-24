@@ -135,11 +135,15 @@ The server will be accessible at `https://127.0.0.1:8000/mcp` with SSL/TLS encry
 - `SSL_CERT_FILE`: Path to SSL certificate file (default: certs/server.crt) - PEM format certificate file.
 - `SSL_KEY_FILE`: Path to SSL private key file (default: certs/server.key) - PEM format private key file.
 
-#### Legacy stdio Transport
+#### FastMCP with stdio Transport (uvx)
 ```bash
-python3 run_stdio.py
+# Using uvx (recommended for command-line tools)
+uvx --from . budget-mcp-server
+
+# Or using APP_ENV for different configurations
+APP_ENV=development uvx --from . budget-mcp-server
 ```
-Runs the server with traditional stdio transport for backward compatibility with older MCP clients.
+Runs the FastMCP server with stdio transport for MCP clients like Claude Desktop and Gemini. The server uses the same FastMCP architecture as the HTTP server but with stdio transport.
 
 **🔓 Note**: stdio transport does not require bearer token authentication as it operates over standard input/output streams, not HTTP.
 
@@ -202,11 +206,8 @@ pytest tests/test_models/
 # Test services
 pytest tests/test_services/
 
-# Test FastMCP tools
+# Test FastMCP tools (both HTTP and stdio transports)
 pytest tests/test_fastmcp_tools.py
-
-# Test legacy MCP tools (stdio transport)
-pytest tests/test_mcp_tools.py
 
 # Test authentication middleware ✅ NEW
 pytest tests/test_auth.py
@@ -227,29 +228,20 @@ pytest tests/test_config_auth.py
 
 ## Architecture
 
-### Modular MCP Server Architecture
-The application supports both modern FastMCP with Streamable HTTP transport and legacy stdio transport:
+### FastMCP Architecture
+The application uses FastMCP for both HTTP and stdio transports, providing a unified implementation:
 
-**FastMCP Architecture (Primary):**
-- **app/fastmcp_server.py**: FastMCP server factory with @tool decorators and Streamable HTTP transport
-- **run.py**: FastMCP entry point with HTTP/HTTPS server (includes custom HTTPS implementation)
+**FastMCP Implementation:**
+- **app/fastmcp_server.py**: FastMCP server factory with @tool decorators supporting both HTTP and stdio transports
+- **app/cli.py**: FastMCP stdio entry point for uvx command-line usage
+- **run.py**: FastMCP HTTP/HTTPS entry point with custom HTTPS implementation
 - **scripts/generate_cert.py**: SSL certificate generation utility for HTTPS support
-- **tests/test_fastmcp_tools.py**: FastMCP-specific test suite
+- **tests/test_fastmcp_tools.py**: FastMCP test suite covering both transports
 
-**Core Business Logic (Shared):**
+**Core Business Logic:**
 - **app/models/database.py**: `Database` class handles all DuckDB interactions, table creation, and CRUD operations
 - **app/services/**: Business logic classes (`EnvelopeService`, `TransactionService`) with validation
-- **app/config.py**: Configuration management for different environments (includes HTTPS settings)
-
-**Legacy MCP Support (Backward Compatibility):**
-- **app/mcp/**: Legacy MCP tool definitions and centralized registration system
-  - **registry.py**: Centralized decorator-based tool registration system
-  - **envelope_tools.py**: Envelope management MCP tools
-  - **transaction_tools.py**: Transaction management MCP tools  
-  - **utility_tools.py**: Balance and summary MCP tools
-- **app/__init__.py**: Legacy MCP server factory pattern
-- **run_stdio.py**: Legacy stdio transport entry point
-- **tests/test_mcp_tools.py**: Legacy MCP test suite
+- **app/config.py**: Configuration management for different environments (includes HTTPS and MotherDuck settings)
 
 **Supporting Components:**
 - **app/utils/**: Error handlers and utility functions
