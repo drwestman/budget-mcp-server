@@ -31,8 +31,8 @@ class TestMotherDuckCloudMode:
         # Verify pre-creation connection was made and closed
         assert mock_connect.call_count == 2
         mock_connect.assert_has_calls([
-            call('md:test_db?motherduck_token=test_token'),  # Pre-creation
-            call('md:test_db?motherduck_token=test_token')   # Main connection
+            call('md:?motherduck_token=test_token'),  # Pre-creation call without DB name
+            call('md:test_db?motherduck_token=test_token')   # Main connection call with DB name
         ])
         mock_creation_conn.close.assert_called_once()
         
@@ -137,12 +137,13 @@ class TestMotherDuckCloudMode:
             assert status['connection_info']['requested_mode'] == 'cloud'
 
     @patch('app.models.database.duckdb.connect')
-    def test_hybrid_mode_still_works_with_unified_behavior(self, mock_connect):
-        """Test that hybrid mode continues to work with the unified behavior."""
-        # Mock successful creation and connections
+    def test_hybrid_mode_connectivity_check_success(self, mock_connect):
+        """Test that hybrid mode correctly verifies cloud availability."""
+        # Mock the three connections: creation, local, and the test connection for cloud
         mock_creation_conn = Mock()
         mock_local_conn = Mock()
-        mock_connect.side_effect = [mock_creation_conn, mock_local_conn]
+        mock_test_conn = Mock()
+        mock_connect.side_effect = [mock_creation_conn, mock_local_conn, mock_test_conn]
         
         motherduck_config = {
             'token': 'test_token',
@@ -156,15 +157,15 @@ class TestMotherDuckCloudMode:
             motherduck_config=motherduck_config
         )
         
-        # Verify pre-creation connection was made and closed
-        mock_creation_conn.close.assert_called_once()
-        
-        # Verify hybrid connection setup
+        # Verify that the cloud is marked as available
+        assert db.is_cloud_connected is True
+        assert db.connection_info.get('cloud_available') is True
         assert db.connection_info['primary'] == 'local'
         
-        # Check that ATTACH was called among the execute calls
-        attach_call = call("ATTACH 'md:test_db?motherduck_token=test_token' AS motherduck")
-        assert attach_call in mock_local_conn.execute.call_args_list
+        # Verify the correct connections were made and closed
+        assert mock_connect.call_count == 3
+        mock_creation_conn.close.assert_called_once()
+        mock_test_conn.close.assert_called_once()
 
     @patch('app.models.database.duckdb.connect')
     def test_cloud_mode_both_connections_fail(self, mock_connect):

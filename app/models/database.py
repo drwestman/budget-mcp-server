@@ -94,7 +94,7 @@ class Database:
             
             conn.close()  # Close the creation connection
             
-        except Exception as e:
+        except duckdb.Error as e:
             logger.error(f"Failed to ensure MotherDuck database '{database}' exists: {e}")
             # Let the main connection logic handle the fallback
             
