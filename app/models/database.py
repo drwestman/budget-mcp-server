@@ -71,6 +71,33 @@ class Database:
         else:
             raise ValueError(f"Unsupported database mode: {self.mode}")
     
+    def _ensure_motherduck_db_exists(self):
+        """
+        Ensures the MotherDuck database exists by creating it if necessary.
+        Supports both cloud and hybrid modes.
+        """
+        if self.mode not in ['cloud', 'hybrid'] or not self.motherduck_config.get('token'):
+            return
+
+        token = self.motherduck_config.get('token')
+        database = self.motherduck_config.get('database', 'budget_app')
+        
+        try:
+            logger.info(f"Ensuring MotherDuck database '{database}' exists for {self.mode} mode...")
+            
+            # First, connect to MotherDuck without specifying a database to create it
+            conn = duckdb.connect(f"md:?motherduck_token={token}")
+            
+            # Create the database if it doesn't exist
+            conn.execute(f"CREATE DATABASE IF NOT EXISTS {database}")
+            logger.info(f"MotherDuck database '{database}' created/verified.")
+            
+            conn.close()  # Close the creation connection
+            
+        except duckdb.Error as e:
+            logger.error(f"Failed to ensure MotherDuck database '{database}' exists: {e}")
+            # Let the main connection logic handle the fallback
+            
     def _connect(self):
         """Establishes a connection to the DuckDB database based on the configured mode."""
         try:
@@ -79,6 +106,9 @@ class Database:
             logger.info(f"Connecting to database in '{self.mode}' mode...")
             
             if self.mode == 'cloud':
+                # Ensure MotherDuck DB exists before connecting
+                self._ensure_motherduck_db_exists()
+                
                 # Direct cloud connection
                 self.conn = duckdb.connect(connection_string)
                 self.is_cloud_connected = True
@@ -86,26 +116,32 @@ class Database:
                 logger.info(f"Connected to MotherDuck database: {self.motherduck_config.get('database', 'budget_app')}")
                 
             elif self.mode == 'hybrid':
-                # Start with local connection, then attach MotherDuck
+                # Ensure MotherDuck DB exists
+                self._ensure_motherduck_db_exists()
+
+                # Start with local connection
                 self.conn = duckdb.connect(database=self.db_path, read_only=False)
                 self.connection_info['primary'] = 'local'
                 
-                # Attempt to attach MotherDuck
+                # Verify MotherDuck connectivity (without attachment due to alias limitation)
                 try:
                     token = self.motherduck_config.get('token')
                     database = self.motherduck_config.get('database', 'budget_app')
-                    attach_string = f"md:{database}?motherduck_token={token}"
+                    test_connection_string = f"md:{database}?motherduck_token={token}"
                     
-                    self.conn.execute(f"ATTACH '{attach_string}' AS motherduck")
+                    # Test connection to verify cloud database is accessible
+                    test_conn = duckdb.connect(test_connection_string)
+                    test_conn.close()
+                    
                     self.is_cloud_connected = True
-                    self.connection_info['cloud_attached'] = True
-                    logger.info(f"Attached MotherDuck database: {database}")
+                    self.connection_info['cloud_available'] = True
+                    logger.info(f"MotherDuck database '{database}' is accessible for hybrid operations")
                     
                 except Exception as e:
-                    logger.warning(f"Failed to attach MotherDuck in hybrid mode: {e}")
+                    logger.warning(f"MotherDuck not available in hybrid mode: {e}")
                     logger.info("Continuing with local-only connection")
                     self.is_cloud_connected = False
-                    self.connection_info['cloud_attached'] = False
+                    self.connection_info['cloud_available'] = False
                     
             else:  # local mode
                 self.conn = duckdb.connect(database=self.db_path, read_only=False)
@@ -119,21 +155,17 @@ class Database:
             if self.mode in ['cloud', 'hybrid']:
                 logger.error(f"Failed to connect to MotherDuck: {e}")
                 
-                # For hybrid mode, fall back to local-only
-                if self.mode == 'hybrid':
-                    logger.info("Falling back to local-only connection...")
-                    try:
-                        self.conn = duckdb.connect(database=self.db_path, read_only=False)
-                        self.conn.execute("SET GLOBAL pandas_analyze_sample = 10000;")
-                        self.is_cloud_connected = False
-                        self.connection_info = {'primary': 'local', 'fallback': True}
-                        logger.info("Successfully connected in local-only mode")
-                        return
-                    except Exception as fallback_error:
-                        logger.error(f"Fallback to local connection also failed: {fallback_error}")
-                        raise
-                else:
-                    # Cloud mode failure is fatal
+                # Both cloud and hybrid modes can fall back to local-only
+                logger.warning(f"MotherDuck connection failed in {self.mode} mode. Falling back to local-only connection...")
+                try:
+                    self.conn = duckdb.connect(database=self.db_path, read_only=False)
+                    self.conn.execute("SET GLOBAL pandas_analyze_sample = 10000;")
+                    self.is_cloud_connected = False
+                    self.connection_info = {'primary': 'local', 'fallback': True, 'requested_mode': self.mode}
+                    logger.warning(f"Successfully connected in local-only mode (requested: {self.mode})")
+                    return
+                except Exception as fallback_error:
+                    logger.error(f"Fallback to local connection also failed: {fallback_error}")
                     raise
             else:
                 logger.error(f"Error connecting to local database: {e}")
@@ -488,12 +520,18 @@ class Database:
         Returns:
             dict: Connection status information
         """
-        return {
+        status = {
             'mode': self.mode,
             'is_cloud_connected': self.is_cloud_connected,
             'connection_info': self.connection_info.copy(),
             'motherduck_database': self.motherduck_config.get('database', 'budget_app') if self.motherduck_config else None
         }
+        
+        # Add warning if we fell back from cloud mode
+        if self.connection_info.get('fallback') and self.connection_info.get('requested_mode') == 'cloud':
+            status['warning'] = f"Requested cloud mode but fell back to local-only connection"
+        
+        return status
     
     def sync_to_cloud(self) -> Dict[str, Any]:
         """

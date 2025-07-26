@@ -3,7 +3,7 @@ Tests for MotherDuck integration functionality.
 """
 import pytest
 import os
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock, call
 from app.models.database import Database
 from app.config import Config, DevelopmentConfig, TestingConfig
 
@@ -145,13 +145,16 @@ class TestDatabaseConnectionModes:
         assert db.is_cloud_connected is True
         assert db.connection_info['primary'] == 'cloud'
         
-        # Verify the connection string was built correctly
-        expected_connection_string = "md:test_budget?motherduck_token=1234567890abcdef1234567890abcdef"
-        mock_connect.assert_called_once_with(expected_connection_string)
+        # Verify both connection types were made
+        calls = [str(c) for c in mock_connect.call_args_list]
+        creation_call = "call('md:?motherduck_token=1234567890abcdef1234567890abcdef')"
+        main_call = "call('md:test_budget?motherduck_token=1234567890abcdef1234567890abcdef')"
+        assert creation_call in calls, f"DB creation call not found in {calls}"
+        assert main_call in calls, f"Main connection call not found in {calls}"
 
     @patch('app.models.database.duckdb.connect')
     def test_hybrid_mode_connection_success(self, mock_connect):
-        """Test Database initialization in hybrid mode with successful MotherDuck attachment."""
+        """Test Database initialization in hybrid mode with successful MotherDuck connectivity."""
         mock_conn = Mock()
         mock_connect.return_value = mock_conn
         mock_conn.execute.return_value = None
@@ -170,25 +173,37 @@ class TestDatabaseConnectionModes:
         assert db.mode == "hybrid"
         assert db.is_cloud_connected is True
         assert db.connection_info['primary'] == 'local'
-        assert db.connection_info['cloud_attached'] is True
+        assert db.connection_info['cloud_available'] is True
         
-        # Verify MotherDuck was attached
-        expected_attach_command = "ATTACH 'md:test_budget?motherduck_token=1234567890abcdef1234567890abcdef' AS motherduck"
-        mock_conn.execute.assert_any_call(expected_attach_command)
+        # Verify all three connection types were made
+        calls = [str(c) for c in mock_connect.call_args_list]
+        creation_call = "call('md:?motherduck_token=1234567890abcdef1234567890abcdef')"
+        test_call = "call('md:test_budget?motherduck_token=1234567890abcdef1234567890abcdef')"
+        local_call = "call(database=':memory:', read_only=False)"
+        
+        assert creation_call in calls, f"DB creation call not found in {calls}"
+        assert test_call in calls, f"Test connection call not found in {calls}"
+        assert local_call in calls, f"Local connection call not found in {calls}"
 
     @patch('app.models.database.duckdb.connect')
     def test_hybrid_mode_connection_fallback(self, mock_connect):
-        """Test Database initialization in hybrid mode with MotherDuck attachment failure."""
-        mock_conn = Mock()
-        mock_connect.return_value = mock_conn
+        """Test Database initialization in hybrid mode with MotherDuck connection failure."""
+        # Mock different connections for different calls
+        mock_creation_conn = Mock()
+        mock_local_conn = Mock()
         
-        # Simulate MotherDuck attachment failure
-        def side_effect(query):
-            if "ATTACH" in query:
+        def connect_side_effect(connection_string=None, **kwargs):
+            if connection_string and connection_string.startswith('md:test_budget'):
+                # Simulate failure on test connection
                 raise Exception("MotherDuck connection failed")
-            return None
+            elif connection_string and connection_string.startswith('md:?'):
+                # DB creation succeeds
+                return mock_creation_conn
+            else:
+                # Local connection succeeds
+                return mock_local_conn
         
-        mock_conn.execute.side_effect = side_effect
+        mock_connect.side_effect = connect_side_effect
         
         motherduck_config = {
             'token': '1234567890abcdef1234567890abcdef',
@@ -204,7 +219,7 @@ class TestDatabaseConnectionModes:
         assert db.mode == "hybrid"
         assert db.is_cloud_connected is False
         assert db.connection_info['primary'] == 'local'
-        assert db.connection_info['cloud_attached'] is False
+        assert db.connection_info['cloud_available'] is False
 
     def test_get_connection_string_modes(self):
         """Test connection string generation for different modes."""

@@ -318,7 +318,7 @@ Add the following to your Claude Desktop configuration file:
   "mcpServers": {
     "budget-envelope": {
       "command": "uv",
-      "args": ["run", "python", "app/cli.py"],
+      "args": ["run", "python", "-m", "app.cli"],
       "cwd": "/path/to/budget-mcp-server",
       "env": {
         "MOTHERDUCK_TOKEN": "your-motherduck-token-here",
