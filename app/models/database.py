@@ -73,7 +73,7 @@ class Database:
     
     def _ensure_motherduck_db_exists(self):
         """
-        Ensures the MotherDuck database exists by attempting a connection.
+        Ensures the MotherDuck database exists by creating it if necessary.
         Supports both cloud and hybrid modes.
         """
         if self.mode not in ['cloud', 'hybrid'] or not self.motherduck_config.get('token'):
@@ -81,14 +81,19 @@ class Database:
 
         token = self.motherduck_config.get('token')
         database = self.motherduck_config.get('database', 'budget_app')
-        connection_string = f"md:{database}?motherduck_token={token}"
         
         try:
-            logger.info(f"Checking/creating MotherDuck database '{database}' for {self.mode} mode...")
-            # Connect and immediately close to ensure DB exists
-            conn = duckdb.connect(connection_string)
-            conn.close()  # CRITICAL: Close the creation connection
-            logger.info(f"MotherDuck database '{database}' is ready.")
+            logger.info(f"Ensuring MotherDuck database '{database}' exists for {self.mode} mode...")
+            
+            # First, connect to MotherDuck without specifying a database to create it
+            conn = duckdb.connect(f"md:?motherduck_token={token}")
+            
+            # Create the database if it doesn't exist
+            conn.execute(f"CREATE DATABASE IF NOT EXISTS {database}")
+            logger.info(f"MotherDuck database '{database}' created/verified.")
+            
+            conn.close()  # Close the creation connection
+            
         except Exception as e:
             logger.error(f"Failed to ensure MotherDuck database '{database}' exists: {e}")
             # Let the main connection logic handle the fallback
@@ -111,29 +116,32 @@ class Database:
                 logger.info(f"Connected to MotherDuck database: {self.motherduck_config.get('database', 'budget_app')}")
                 
             elif self.mode == 'hybrid':
-                # Ensure MotherDuck DB exists before attaching
+                # Ensure MotherDuck DB exists
                 self._ensure_motherduck_db_exists()
 
-                # Start with local connection, then attach MotherDuck
+                # Start with local connection
                 self.conn = duckdb.connect(database=self.db_path, read_only=False)
                 self.connection_info['primary'] = 'local'
                 
-                # Attempt to attach MotherDuck
+                # Verify MotherDuck connectivity (without attachment due to alias limitation)
                 try:
                     token = self.motherduck_config.get('token')
                     database = self.motherduck_config.get('database', 'budget_app')
-                    attach_string = f"md:{database}?motherduck_token={token}"
+                    test_connection_string = f"md:{database}?motherduck_token={token}"
                     
-                    self.conn.execute(f"ATTACH '{attach_string}' AS motherduck")
+                    # Test connection to verify cloud database is accessible
+                    test_conn = duckdb.connect(test_connection_string)
+                    test_conn.close()
+                    
                     self.is_cloud_connected = True
-                    self.connection_info['cloud_attached'] = True
-                    logger.info(f"Attached MotherDuck database: {database}")
+                    self.connection_info['cloud_available'] = True
+                    logger.info(f"MotherDuck database '{database}' is accessible for hybrid operations")
                     
                 except Exception as e:
-                    logger.warning(f"Failed to attach MotherDuck in hybrid mode: {e}")
+                    logger.warning(f"MotherDuck not available in hybrid mode: {e}")
                     logger.info("Continuing with local-only connection")
                     self.is_cloud_connected = False
-                    self.connection_info['cloud_attached'] = False
+                    self.connection_info['cloud_available'] = False
                     
             else:  # local mode
                 self.conn = duckdb.connect(database=self.db_path, read_only=False)
