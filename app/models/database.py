@@ -1,7 +1,7 @@
 import duckdb
 import logging
 from datetime import date
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Dict, Any, Union, List, cast
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -14,10 +14,15 @@ class Database:
     Adheres to the Single Responsibility Principle (SRP) by focusing solely on data persistence.
     """
 
-    def __init__(self, db_path: str, mode: str = "local", motherduck_config: Optional[Dict[str, str]] = None):
+    def __init__(
+        self,
+        db_path: str,
+        mode: str = "local",
+        motherduck_config: Optional[Dict[str, str]] = None,
+    ):
         """
         Initializes the Database connection and ensures tables exist.
-        
+
         Args:
             db_path (str): Path to the DuckDB database file (for local mode) or database name (for cloud mode)
             mode (str): Connection mode - 'local', 'cloud', or 'hybrid'
@@ -26,146 +31,168 @@ class Database:
         self.db_path = db_path
         self.mode = mode
         self.motherduck_config = motherduck_config or {}
-        self.conn = None
+        self.conn: Optional[duckdb.DuckDBPyConnection] = None
         self.is_cloud_connected = False
-        self.connection_info = {}
-        
+        self.connection_info: Dict[str, Any] = {}
+
         # Validate configuration before attempting connection
         self._validate_config()
-        
+
         # Establish connection
         self._connect()
         self._create_tables()
-        
+
         logger.info(f"Database initialized in '{mode}' mode")
 
     def _validate_config(self):
         """Validate configuration before attempting connection."""
-        if self.mode not in ['local', 'cloud', 'hybrid']:
-            raise ValueError(f"Invalid database mode '{self.mode}'. Must be 'local', 'cloud', or 'hybrid'")
-        
-        if self.mode in ['cloud', 'hybrid']:
-            token = self.motherduck_config.get('token')
+        if self.mode not in ["local", "cloud", "hybrid"]:
+            raise ValueError(
+                f"Invalid database mode '{self.mode}'. Must be 'local', 'cloud', or 'hybrid'"
+            )
+
+        if self.mode in ["cloud", "hybrid"]:
+            token = self.motherduck_config.get("token")
             if not token:
                 raise ValueError(f"MotherDuck token is required for '{self.mode}' mode")
-    
+
     def _get_connection_string(self) -> str:
         """
         Build the appropriate connection string based on mode.
-        
+
         Returns:
             str: Connection string for DuckDB/MotherDuck
         """
-        if self.mode == 'local':
+        if self.mode == "local":
             return self.db_path
-        
-        elif self.mode == 'cloud':
-            token = self.motherduck_config.get('token')
-            database = self.motherduck_config.get('database', 'budget_app')
+
+        elif self.mode == "cloud":
+            token = self.motherduck_config.get("token")
+            database = self.motherduck_config.get("database", "budget_app")
             return f"md:{database}?motherduck_token={token}"
-        
-        elif self.mode == 'hybrid':
+
+        elif self.mode == "hybrid":
             # Hybrid mode starts with local connection
             return self.db_path
-        
+
         else:
             raise ValueError(f"Unsupported database mode: {self.mode}")
-    
+
     def _ensure_motherduck_db_exists(self):
         """
         Ensures the MotherDuck database exists by creating it if necessary.
         Supports both cloud and hybrid modes.
         """
-        if self.mode not in ['cloud', 'hybrid'] or not self.motherduck_config.get('token'):
+        if self.mode not in ["cloud", "hybrid"] or not self.motherduck_config.get(
+            "token"
+        ):
             return
 
-        token = self.motherduck_config.get('token')
-        database = self.motherduck_config.get('database', 'budget_app')
-        
+        token = self.motherduck_config.get("token")
+        database = self.motherduck_config.get("database", "budget_app")
+
         try:
-            logger.info(f"Ensuring MotherDuck database '{database}' exists for {self.mode} mode...")
-            
+            logger.info(
+                f"Ensuring MotherDuck database '{database}' exists for {self.mode} mode..."
+            )
+
             # First, connect to MotherDuck without specifying a database to create it
             conn = duckdb.connect(f"md:?motherduck_token={token}")
-            
+
             # Create the database if it doesn't exist
             conn.execute(f"CREATE DATABASE IF NOT EXISTS {database}")
             logger.info(f"MotherDuck database '{database}' created/verified.")
-            
+
             conn.close()  # Close the creation connection
-            
+
         except duckdb.Error as e:
-            logger.error(f"Failed to ensure MotherDuck database '{database}' exists: {e}")
+            logger.error(
+                f"Failed to ensure MotherDuck database '{database}' exists: {e}"
+            )
             # Let the main connection logic handle the fallback
-            
+
     def _connect(self):
         """Establishes a connection to the DuckDB database based on the configured mode."""
         try:
             connection_string = self._get_connection_string()
-            
+
             logger.info(f"Connecting to database in '{self.mode}' mode...")
-            
-            if self.mode == 'cloud':
+
+            if self.mode == "cloud":
                 # Ensure MotherDuck DB exists before connecting
                 self._ensure_motherduck_db_exists()
-                
+
                 # Direct cloud connection
                 self.conn = duckdb.connect(connection_string)
                 self.is_cloud_connected = True
-                self.connection_info['primary'] = 'cloud'
-                logger.info(f"Connected to MotherDuck database: {self.motherduck_config.get('database', 'budget_app')}")
-                
-            elif self.mode == 'hybrid':
+                self.connection_info["primary"] = "cloud"
+                logger.info(
+                    f"Connected to MotherDuck database: {self.motherduck_config.get('database', 'budget_app')}"
+                )
+
+            elif self.mode == "hybrid":
                 # Ensure MotherDuck DB exists
                 self._ensure_motherduck_db_exists()
 
                 # Start with local connection
                 self.conn = duckdb.connect(database=self.db_path, read_only=False)
-                self.connection_info['primary'] = 'local'
-                
+                self.connection_info["primary"] = "local"
+
                 # Verify MotherDuck connectivity (without attachment due to alias limitation)
                 try:
-                    token = self.motherduck_config.get('token')
-                    database = self.motherduck_config.get('database', 'budget_app')
+                    token = self.motherduck_config.get("token")
+                    database = self.motherduck_config.get("database", "budget_app")
                     test_connection_string = f"md:{database}?motherduck_token={token}"
-                    
+
                     # Test connection to verify cloud database is accessible
                     test_conn = duckdb.connect(test_connection_string)
                     test_conn.close()
-                    
+
                     self.is_cloud_connected = True
-                    self.connection_info['cloud_available'] = True
-                    logger.info(f"MotherDuck database '{database}' is accessible for hybrid operations")
-                    
+                    self.connection_info["cloud_available"] = True
+                    logger.info(
+                        f"MotherDuck database '{database}' is accessible for hybrid operations"
+                    )
+
                 except Exception as e:
                     logger.warning(f"MotherDuck not available in hybrid mode: {e}")
                     logger.info("Continuing with local-only connection")
                     self.is_cloud_connected = False
-                    self.connection_info['cloud_available'] = False
-                    
+                    self.connection_info["cloud_available"] = False
+
             else:  # local mode
                 self.conn = duckdb.connect(database=self.db_path, read_only=False)
-                self.connection_info['primary'] = 'local'
+                self.connection_info["primary"] = "local"
                 logger.info(f"Connected to local database: {self.db_path}")
-            
+
             # Set common connection settings
             self.conn.execute("SET GLOBAL pandas_analyze_sample = 10000;")
-            
+
         except Exception as e:
-            if self.mode in ['cloud', 'hybrid']:
+            if self.mode in ["cloud", "hybrid"]:
                 logger.error(f"Failed to connect to MotherDuck: {e}")
-                
+
                 # Both cloud and hybrid modes can fall back to local-only
-                logger.warning(f"MotherDuck connection failed in {self.mode} mode. Falling back to local-only connection...")
+                logger.warning(
+                    f"MotherDuck connection failed in {self.mode} mode. Falling back to local-only connection..."
+                )
                 try:
                     self.conn = duckdb.connect(database=self.db_path, read_only=False)
                     self.conn.execute("SET GLOBAL pandas_analyze_sample = 10000;")
                     self.is_cloud_connected = False
-                    self.connection_info = {'primary': 'local', 'fallback': True, 'requested_mode': self.mode}
-                    logger.warning(f"Successfully connected in local-only mode (requested: {self.mode})")
+                    self.connection_info = {
+                        "primary": "local",
+                        "fallback": True,
+                        "requested_mode": self.mode,
+                    }
+                    logger.warning(
+                        f"Successfully connected in local-only mode (requested: {self.mode})"
+                    )
                     return
                 except Exception as fallback_error:
-                    logger.error(f"Fallback to local connection also failed: {fallback_error}")
+                    logger.error(
+                        f"Fallback to local connection also failed: {fallback_error}"
+                    )
                     raise
             else:
                 logger.error(f"Error connecting to local database: {e}")
@@ -510,60 +537,73 @@ class Database:
                 f"Error calculating current balance for envelope {envelope_id}: {e}"
             )
             raise
-    
+
     # --- MotherDuck Cloud Operations ---
-    
+
     def get_connection_status(self) -> Dict[str, Any]:
         """
         Get current connection status and information.
-        
+
         Returns:
             dict: Connection status information
         """
         status = {
-            'mode': self.mode,
-            'is_cloud_connected': self.is_cloud_connected,
-            'connection_info': self.connection_info.copy(),
-            'motherduck_database': self.motherduck_config.get('database', 'budget_app') if self.motherduck_config else None
+            "mode": self.mode,
+            "is_cloud_connected": self.is_cloud_connected,
+            "connection_info": self.connection_info.copy(),
+            "motherduck_database": self.motherduck_config.get("database", "budget_app")
+            if self.motherduck_config
+            else None,
         }
-        
+
         # Add warning if we fell back from cloud mode
-        if self.connection_info.get('fallback') and self.connection_info.get('requested_mode') == 'cloud':
-            status['warning'] = f"Requested cloud mode but fell back to local-only connection"
-        
+        if (
+            self.connection_info.get("fallback")
+            and self.connection_info.get("requested_mode") == "cloud"
+        ):
+            status[
+                "warning"
+            ] = "Requested cloud mode but fell back to local-only connection"
+
         return status
-    
+
     def sync_to_cloud(self) -> Dict[str, Any]:
         """
         Synchronize local data to MotherDuck cloud database.
         Only available in hybrid mode or when cloud connection is available.
-        
+
         Returns:
             dict: Sync operation results
         """
         if not self.is_cloud_connected:
             raise ValueError("Cloud connection not available for synchronization")
-        
-        if self.mode == 'cloud':
-            raise ValueError("sync_to_cloud not applicable in cloud mode (data is already in cloud)")
-        
+
+        if self.mode == "cloud":
+            raise ValueError(
+                "sync_to_cloud not applicable in cloud mode (data is already in cloud)"
+            )
+
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
         try:
             logger.info("Starting sync to MotherDuck cloud...")
-            
-            results = {
-                'envelopes_synced': 0,
-                'transactions_synced': 0,
-                'errors': []
+
+            results: Dict[str, Union[int, List[str]]] = {
+                "envelopes_synced": 0,
+                "transactions_synced": 0,
+                "errors": [],
             }
-            
+
             # Get database name for cloud operations
-            
+
             # Sync envelopes
             try:
                 envelopes = self.get_all_envelopes()
                 if envelopes:
                     # Create envelopes table in cloud if not exists
-                    self.conn.execute(f"""
+                    self.conn.execute(
+                        """
                         CREATE TABLE IF NOT EXISTS motherduck.main.envelopes (
                             id INTEGER PRIMARY KEY,
                             category VARCHAR NOT NULL UNIQUE,
@@ -571,31 +611,43 @@ class Database:
                             starting_balance DOUBLE NOT NULL,
                             description VARCHAR
                         )
-                    """)
-                    
+                    """
+                    )
+
                     # Insert or replace envelopes in cloud
                     for envelope in envelopes:
-                        self.conn.execute(f"""
+                        self.conn.execute(
+                            """
                             INSERT OR REPLACE INTO motherduck.main.envelopes 
                             (id, category, budgeted_amount, starting_balance, description)
                             VALUES (?, ?, ?, ?, ?)
-                        """, (envelope['id'], envelope['category'], envelope['budgeted_amount'],
-                              envelope['starting_balance'], envelope['description']))
-                        results['envelopes_synced'] += 1
-                    
+                        """,
+                            (
+                                envelope["id"],
+                                envelope["category"],
+                                envelope["budgeted_amount"],
+                                envelope["starting_balance"],
+                                envelope["description"],
+                            ),
+                        )
+                        results["envelopes_synced"] = (
+                            cast(int, results["envelopes_synced"]) + 1
+                        )
+
                 logger.info(f"Synced {results['envelopes_synced']} envelopes to cloud")
-                
+
             except Exception as e:
                 error_msg = f"Error syncing envelopes: {e}"
                 logger.error(error_msg)
-                results['errors'].append(error_msg)
-            
+                cast(List[str], results["errors"]).append(error_msg)
+
             # Sync transactions
             try:
                 transactions = self.get_all_transactions()
                 if transactions:
                     # Create transactions table in cloud if not exists
-                    self.conn.execute(f"""
+                    self.conn.execute(
+                        """
                         CREATE TABLE IF NOT EXISTS motherduck.main.transactions (
                             id INTEGER PRIMARY KEY,
                             envelope_id INTEGER NOT NULL,
@@ -604,170 +656,214 @@ class Database:
                             date DATE NOT NULL,
                             type VARCHAR NOT NULL
                         )
-                    """)
-                    
+                    """
+                    )
+
                     # Insert or replace transactions in cloud
                     for transaction in transactions:
-                        self.conn.execute(f"""
+                        self.conn.execute(
+                            """
                             INSERT OR REPLACE INTO motherduck.main.transactions 
                             (id, envelope_id, amount, description, date, type)
                             VALUES (?, ?, ?, ?, ?, ?)
-                        """, (transaction['id'], transaction['envelope_id'], transaction['amount'],
-                              transaction['description'], transaction['date'], transaction['type']))
-                        results['transactions_synced'] += 1
-                
-                logger.info(f"Synced {results['transactions_synced']} transactions to cloud")
-                
+                        """,
+                            (
+                                transaction["id"],
+                                transaction["envelope_id"],
+                                transaction["amount"],
+                                transaction["description"],
+                                transaction["date"],
+                                transaction["type"],
+                            ),
+                        )
+                        results["transactions_synced"] = (
+                            cast(int, results["transactions_synced"]) + 1
+                        )
+
+                logger.info(
+                    f"Synced {results['transactions_synced']} transactions to cloud"
+                )
+
             except Exception as e:
                 error_msg = f"Error syncing transactions: {e}"
                 logger.error(error_msg)
-                results['errors'].append(error_msg)
-            
+                cast(List[str], results["errors"]).append(error_msg)
+
             self.conn.commit()
             logger.info("Successfully completed sync to MotherDuck cloud")
-            
+
             return results
-            
+
         except Exception as e:
             logger.error(f"Failed to sync to cloud: {e}")
             raise
-    
+
     def sync_from_cloud(self) -> Dict[str, Any]:
         """
         Synchronize data from MotherDuck cloud to local database.
         Only available in hybrid mode or when cloud connection is available.
-        
+
         Returns:
             dict: Sync operation results
         """
         if not self.is_cloud_connected:
             raise ValueError("Cloud connection not available for synchronization")
-        
-        if self.mode == 'cloud':
-            raise ValueError("sync_from_cloud not applicable in cloud mode (data is already in cloud)")
-        
+
+        if self.mode == "cloud":
+            raise ValueError(
+                "sync_from_cloud not applicable in cloud mode (data is already in cloud)"
+            )
+
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
         try:
             logger.info("Starting sync from MotherDuck cloud...")
-            
-            results = {
-                'envelopes_synced': 0,
-                'transactions_synced': 0,
-                'errors': []
+
+            results: Dict[str, Union[int, List[str]]] = {
+                "envelopes_synced": 0,
+                "transactions_synced": 0,
+                "errors": [],
             }
-            
+
             # Sync envelopes from cloud
             try:
-                cloud_envelopes = self.conn.execute("""
+                cloud_envelopes = self.conn.execute(
+                    """
                     SELECT id, category, budgeted_amount, starting_balance, description 
                     FROM motherduck.main.envelopes
-                """).fetchall()
-                
+                """
+                ).fetchall()
+
                 for envelope_row in cloud_envelopes:
                     # Insert or replace in local database
-                    self.conn.execute("""
+                    self.conn.execute(
+                        """
                         INSERT OR REPLACE INTO main.envelopes 
                         (id, category, budgeted_amount, starting_balance, description)
                         VALUES (?, ?, ?, ?, ?)
-                    """, envelope_row)
-                    results['envelopes_synced'] += 1
-                
-                logger.info(f"Synced {results['envelopes_synced']} envelopes from cloud")
-                
+                    """,
+                        envelope_row,
+                    )
+                    results["envelopes_synced"] = (
+                        cast(int, results["envelopes_synced"]) + 1
+                    )
+
+                logger.info(
+                    f"Synced {results['envelopes_synced']} envelopes from cloud"
+                )
+
             except Exception as e:
                 error_msg = f"Error syncing envelopes from cloud: {e}"
                 logger.error(error_msg)
-                results['errors'].append(error_msg)
-            
+                cast(List[str], results["errors"]).append(error_msg)
+
             # Sync transactions from cloud
             try:
-                cloud_transactions = self.conn.execute("""
+                cloud_transactions = self.conn.execute(
+                    """
                     SELECT id, envelope_id, amount, description, date, type 
                     FROM motherduck.main.transactions
-                """).fetchall()
-                
+                """
+                ).fetchall()
+
                 for transaction_row in cloud_transactions:
                     # Insert or replace in local database
-                    self.conn.execute("""
+                    self.conn.execute(
+                        """
                         INSERT OR REPLACE INTO main.transactions 
                         (id, envelope_id, amount, description, date, type)
                         VALUES (?, ?, ?, ?, ?, ?)
-                    """, transaction_row)
-                    results['transactions_synced'] += 1
-                
-                logger.info(f"Synced {results['transactions_synced']} transactions from cloud")
-                
+                    """,
+                        transaction_row,
+                    )
+                    results["transactions_synced"] = (
+                        cast(int, results["transactions_synced"]) + 1
+                    )
+
+                logger.info(
+                    f"Synced {results['transactions_synced']} transactions from cloud"
+                )
+
             except Exception as e:
                 error_msg = f"Error syncing transactions from cloud: {e}"
                 logger.error(error_msg)
-                results['errors'].append(error_msg)
-            
+                cast(List[str], results["errors"]).append(error_msg)
+
             self.conn.commit()
             logger.info("Successfully completed sync from MotherDuck cloud")
-            
+
             return results
-            
+
         except Exception as e:
             logger.error(f"Failed to sync from cloud: {e}")
             raise
-    
+
     def get_sync_status(self) -> Dict[str, Any]:
         """
         Get synchronization status between local and cloud databases.
-        
+
         Returns:
             dict: Sync status information
         """
         if not self.is_cloud_connected:
             return {
-                'cloud_available': False,
-                'message': 'Cloud connection not available'
+                "cloud_available": False,
+                "message": "Cloud connection not available",
             }
-        
-        if self.mode == 'cloud':
+
+        if self.mode == "cloud":
             return {
-                'cloud_available': True,
-                'mode': 'cloud',
-                'message': 'Operating in cloud mode - no sync needed'
+                "cloud_available": True,
+                "mode": "cloud",
+                "message": "Operating in cloud mode - no sync needed",
             }
-        
+
+        if self.conn is None:
+            return {
+                "cloud_available": False,
+                "message": "Database connection not available",
+            }
+
         try:
             # Count local records
             local_envelopes = len(self.get_all_envelopes())
             local_transactions = len(self.get_all_transactions())
-            
+
             # Count cloud records
             try:
-                cloud_envelopes = self.conn.execute(
+                result = self.conn.execute(
                     "SELECT COUNT(*) FROM motherduck.main.envelopes"
-                ).fetchone()[0]
+                ).fetchone()
+                cloud_envelopes = result[0] if result else 0
             except duckdb.Error:
                 cloud_envelopes = 0
-                
+
             try:
-                cloud_transactions = self.conn.execute(
+                result = self.conn.execute(
                     "SELECT COUNT(*) FROM motherduck.main.transactions"
-                ).fetchone()[0]
+                ).fetchone()
+                cloud_transactions = result[0] if result else 0
             except duckdb.Error:
                 cloud_transactions = 0
-            
+
             return {
-                'cloud_available': True,
-                'mode': self.mode,
-                'local_counts': {
-                    'envelopes': local_envelopes,
-                    'transactions': local_transactions
+                "cloud_available": True,
+                "mode": self.mode,
+                "local_counts": {
+                    "envelopes": local_envelopes,
+                    "transactions": local_transactions,
                 },
-                'cloud_counts': {
-                    'envelopes': cloud_envelopes,
-                    'transactions': cloud_transactions
+                "cloud_counts": {
+                    "envelopes": cloud_envelopes,
+                    "transactions": cloud_transactions,
                 },
-                'sync_needed': (local_envelopes != cloud_envelopes or 
-                              local_transactions != cloud_transactions)
+                "sync_needed": (
+                    local_envelopes != cloud_envelopes
+                    or local_transactions != cloud_transactions
+                ),
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting sync status: {e}")
-            return {
-                'cloud_available': True,
-                'error': str(e)
-            }
+            return {"cloud_available": True, "error": str(e)}

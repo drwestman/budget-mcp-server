@@ -5,7 +5,6 @@ SSL Certificate Generation Script for Budget MCP Server
 Generates self-signed SSL certificates for development use.
 Creates both the private key and certificate files needed for HTTPS.
 """
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -14,7 +13,7 @@ from pathlib import Path
 def generate_self_signed_cert(cert_dir="certs", days=365, hostname=None):
     """
     Generate self-signed SSL certificate and private key.
-    
+
     Args:
         cert_dir (str): Directory to store certificate files
         days (int): Certificate validity period in days
@@ -23,25 +22,25 @@ def generate_self_signed_cert(cert_dir="certs", days=365, hostname=None):
     # Create certificates directory
     cert_path = Path(cert_dir)
     cert_path.mkdir(exist_ok=True)
-    
+
     key_file = cert_path / "server.key"
     cert_file = cert_path / "server.crt"
     config_file = cert_path / "cert.conf"
-    
+
     # Use provided hostname or default to localhost
     if hostname is None:
         hostname = "localhost"
-    
+
     print(f"Generating self-signed SSL certificate in {cert_dir}/")
     print(f"Certificate will be valid for {days} days")
     print(f"Certificate hostname: {hostname}")
-    
+
     # Create OpenSSL config for SAN extensions
     alt_names = [f"DNS.1 = {hostname}"]
     if hostname != "localhost":
         alt_names.append("DNS.2 = localhost")
     alt_names.append("IP.1 = 127.0.0.1")
-    
+
     san_config = f"""[req]
 distinguished_name = req_distinguished_name
 req_extensions = v3_req
@@ -62,35 +61,42 @@ subjectAltName = @alt_names
 [alt_names]
 {chr(10).join(alt_names)}
 """
-    
+
     # Write config file
-    with open(config_file, 'w') as f:
+    with open(config_file, "w") as f:
         f.write(san_config)
-    
+
     # Generate private key and certificate using openssl
     try:
         # Generate private key
-        subprocess.run([
-            "openssl", "genrsa", 
-            "-out", str(key_file), 
-            "2048"
-        ], check=True, capture_output=True)
-        
+        subprocess.run(
+            ["openssl", "genrsa", "-out", str(key_file), "2048"],
+            check=True,
+            capture_output=True,
+        )
+
         # Generate self-signed certificate with SAN
-        subprocess.run([
-            "openssl", "req", "-new", "-x509",
-            "-key", str(key_file),
-            "-out", str(cert_file),
-            "-days", str(days),
-            "-config", str(config_file),
-            "-extensions", "v3_req"
-        ], check=True, capture_output=True)
-        
-    finally:
-        # Clean up config file
-        if config_file.exists():
-            config_file.unlink()
-        
+        subprocess.run(
+            [
+                "openssl",
+                "req",
+                "-new",
+                "-x509",
+                "-key",
+                str(key_file),
+                "-out",
+                str(cert_file),
+                "-days",
+                str(days),
+                "-config",
+                str(config_file),
+                "-extensions",
+                "v3_req",
+            ],
+            check=True,
+            capture_output=True,
+        )
+
         print(f"✓ Private key generated: {key_file}")
         print(f"✓ Certificate generated: {cert_file}")
         print()
@@ -101,7 +107,7 @@ subjectAltName = @alt_names
         print()
         print("⚠️  This is a self-signed certificate for development only!")
         print("   Browsers will show security warnings that you'll need to accept.")
-        
+
     except subprocess.CalledProcessError as e:
         print(f"Error generating certificate: {e}")
         if e.stderr:
@@ -112,24 +118,40 @@ subjectAltName = @alt_names
         print("Error: OpenSSL not found. Please install OpenSSL:")
         print("  Ubuntu/Debian: sudo apt-get install openssl")
         print("  macOS: brew install openssl")
-        print("  Windows: Download from https://slproweb.com/products/Win32OpenSSL.html")
+        print(
+            "  Windows: Download from https://slproweb.com/products/Win32OpenSSL.html"
+        )
         sys.exit(1)
+    finally:
+        # Clean up config file
+        if config_file.exists():
+            config_file.unlink()
 
 
 def main():
     """Main function to generate SSL certificates."""
     import argparse
-    
-    parser = argparse.ArgumentParser(description="Generate self-signed SSL certificates")
-    parser.add_argument("--cert-dir", default="certs", 
-                       help="Directory to store certificate files (default: certs)")
-    parser.add_argument("--days", type=int, default=365,
-                       help="Certificate validity period in days (default: 365)")
-    parser.add_argument("--hostname", 
-                       help="Hostname to include in certificate (default: localhost)")
-    
+
+    parser = argparse.ArgumentParser(
+        description="Generate self-signed SSL certificates"
+    )
+    parser.add_argument(
+        "--cert-dir",
+        default="certs",
+        help="Directory to store certificate files (default: certs)",
+    )
+    parser.add_argument(
+        "--days",
+        type=int,
+        default=365,
+        help="Certificate validity period in days (default: 365)",
+    )
+    parser.add_argument(
+        "--hostname", help="Hostname to include in certificate (default: localhost)"
+    )
+
     args = parser.parse_args()
-    
+
     generate_self_signed_cert(args.cert_dir, args.days, args.hostname)
 
 

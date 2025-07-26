@@ -1,9 +1,8 @@
-import pytest
 from fastapi.testclient import TestClient
-import json
 
 # No longer need to import create_mcp_server directly in tests
 # The client fixture from conftest will provide the test client
+
 
 class TestMCPTools:
     """Test suite for MCP tools functionality using TestClient."""
