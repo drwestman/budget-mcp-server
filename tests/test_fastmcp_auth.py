@@ -1,11 +1,13 @@
 """
 Unit tests for FastMCP server with bearer token authentication.
 """
-import pytest
+
 import asyncio
 import json
 import os
 from unittest.mock import patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app.fastmcp_server import create_fastmcp_server

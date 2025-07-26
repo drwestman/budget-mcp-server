@@ -1,7 +1,8 @@
-import duckdb
 import logging
 from datetime import date
-from typing import Optional, Dict, Any, Union, List, cast
+from typing import Any, cast
+
+import duckdb
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ class Database:
         self,
         db_path: str,
         mode: str = "local",
-        motherduck_config: Optional[Dict[str, str]] = None,
+        motherduck_config: dict[str, str] | None = None,
     ):
         """
         Initializes the Database connection and ensures tables exist.
@@ -31,9 +32,9 @@ class Database:
         self.db_path = db_path
         self.mode = mode
         self.motherduck_config = motherduck_config or {}
-        self.conn: Optional[duckdb.DuckDBPyConnection] = None
+        self.conn: duckdb.DuckDBPyConnection | None = None
         self.is_cloud_connected = False
-        self.connection_info: Dict[str, Any] = {}
+        self.connection_info: dict[str, Any] = {}
 
         # Validate configuration before attempting connection
         self._validate_config()
@@ -405,9 +406,11 @@ class Database:
                     "envelope_id": result[1],
                     "amount": result[2],
                     "description": result[3],
-                    "date": result[4].isoformat()
-                    if isinstance(result[4], date)
-                    else result[4],
+                    "date": (
+                        result[4].isoformat()
+                        if isinstance(result[4], date)
+                        else result[4]
+                    ),
                     "type": result[5],
                 }
             return None
@@ -540,7 +543,7 @@ class Database:
 
     # --- MotherDuck Cloud Operations ---
 
-    def get_connection_status(self) -> Dict[str, Any]:
+    def get_connection_status(self) -> dict[str, Any]:
         """
         Get current connection status and information.
 
@@ -551,9 +554,11 @@ class Database:
             "mode": self.mode,
             "is_cloud_connected": self.is_cloud_connected,
             "connection_info": self.connection_info.copy(),
-            "motherduck_database": self.motherduck_config.get("database", "budget_app")
-            if self.motherduck_config
-            else None,
+            "motherduck_database": (
+                self.motherduck_config.get("database", "budget_app")
+                if self.motherduck_config
+                else None
+            ),
         }
 
         # Add warning if we fell back from cloud mode
@@ -561,13 +566,13 @@ class Database:
             self.connection_info.get("fallback")
             and self.connection_info.get("requested_mode") == "cloud"
         ):
-            status[
-                "warning"
-            ] = "Requested cloud mode but fell back to local-only connection"
+            status["warning"] = (
+                "Requested cloud mode but fell back to local-only connection"
+            )
 
         return status
 
-    def sync_to_cloud(self) -> Dict[str, Any]:
+    def sync_to_cloud(self) -> dict[str, Any]:
         """
         Synchronize local data to MotherDuck cloud database.
         Only available in hybrid mode or when cloud connection is available.
@@ -589,7 +594,7 @@ class Database:
         try:
             logger.info("Starting sync to MotherDuck cloud...")
 
-            results: Dict[str, Union[int, List[str]]] = {
+            results: dict[str, int | list[str]] = {
                 "envelopes_synced": 0,
                 "transactions_synced": 0,
                 "errors": [],
@@ -639,7 +644,7 @@ class Database:
             except Exception as e:
                 error_msg = f"Error syncing envelopes: {e}"
                 logger.error(error_msg)
-                cast(List[str], results["errors"]).append(error_msg)
+                cast(list[str], results["errors"]).append(error_msg)
 
             # Sync transactions
             try:
@@ -687,7 +692,7 @@ class Database:
             except Exception as e:
                 error_msg = f"Error syncing transactions: {e}"
                 logger.error(error_msg)
-                cast(List[str], results["errors"]).append(error_msg)
+                cast(list[str], results["errors"]).append(error_msg)
 
             self.conn.commit()
             logger.info("Successfully completed sync to MotherDuck cloud")
@@ -698,7 +703,7 @@ class Database:
             logger.error(f"Failed to sync to cloud: {e}")
             raise
 
-    def sync_from_cloud(self) -> Dict[str, Any]:
+    def sync_from_cloud(self) -> dict[str, Any]:
         """
         Synchronize data from MotherDuck cloud to local database.
         Only available in hybrid mode or when cloud connection is available.
@@ -720,7 +725,7 @@ class Database:
         try:
             logger.info("Starting sync from MotherDuck cloud...")
 
-            results: Dict[str, Union[int, List[str]]] = {
+            results: dict[str, int | list[str]] = {
                 "envelopes_synced": 0,
                 "transactions_synced": 0,
                 "errors": [],
@@ -756,7 +761,7 @@ class Database:
             except Exception as e:
                 error_msg = f"Error syncing envelopes from cloud: {e}"
                 logger.error(error_msg)
-                cast(List[str], results["errors"]).append(error_msg)
+                cast(list[str], results["errors"]).append(error_msg)
 
             # Sync transactions from cloud
             try:
@@ -788,7 +793,7 @@ class Database:
             except Exception as e:
                 error_msg = f"Error syncing transactions from cloud: {e}"
                 logger.error(error_msg)
-                cast(List[str], results["errors"]).append(error_msg)
+                cast(list[str], results["errors"]).append(error_msg)
 
             self.conn.commit()
             logger.info("Successfully completed sync from MotherDuck cloud")
@@ -799,7 +804,7 @@ class Database:
             logger.error(f"Failed to sync from cloud: {e}")
             raise
 
-    def get_sync_status(self) -> Dict[str, Any]:
+    def get_sync_status(self) -> dict[str, Any]:
         """
         Get synchronization status between local and cloud databases.
 

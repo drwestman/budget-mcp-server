@@ -2,10 +2,11 @@
 """
 FastMCP server implementation for Budget Cash Envelope MCP Server.
 """
-import os
-import logging
 import json
-from typing import Optional, Annotated
+import logging
+import os
+from typing import Annotated
+
 from fastmcp import FastMCP
 
 from app.config import config
@@ -24,6 +25,7 @@ def _create_authenticated_http_app(original_http_app, bearer_token):
         nonlocal _http_app_instance
         if _http_app_instance is None:
             from app.auth import BearerTokenMiddleware
+
             _http_app_instance = original_http_app(*args, **kwargs)
             _http_app_instance.add_middleware(
                 BearerTokenMiddleware, bearer_token=bearer_token
@@ -37,7 +39,9 @@ def _configure_authentication(mcp: FastMCP, app_config, enable_auth: bool):
     """Configure bearer token authentication middleware if enabled using composition."""
     if enable_auth and app_config.BEARER_TOKEN:
         # Replace the http_app method with authenticated version using composition
-        mcp.http_app = _create_authenticated_http_app(mcp.http_app, app_config.BEARER_TOKEN)
+        mcp.http_app = _create_authenticated_http_app(
+            mcp.http_app, app_config.BEARER_TOKEN
+        )
 
 
 def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService):
@@ -50,10 +54,10 @@ def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService):
             float, "Planned budget amount for this envelope (must be positive)"
         ],
         starting_balance: Annotated[
-            Optional[float], "Initial balance for the envelope. Defaults to 0.0"
+            float | None, "Initial balance for the envelope. Defaults to 0.0"
         ] = 0.0,
         description: Annotated[
-            Optional[str],
+            str | None,
             "Optional description providing additional context about the envelope's purpose. Defaults to empty string",
         ] = "",
     ) -> str:
@@ -92,7 +96,7 @@ def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService):
 
     @mcp.tool()
     async def get_envelope(
-        envelope_id: Annotated[int, "ID of the envelope to retrieve"]
+        envelope_id: Annotated[int, "ID of the envelope to retrieve"],
     ) -> str:
         """Get specific envelope details by ID.
 
@@ -112,14 +116,14 @@ def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService):
     @mcp.tool()
     async def update_envelope(
         envelope_id: Annotated[int, "ID of the envelope to update"],
-        category: Annotated[Optional[str], "New category name (optional)"] = None,
+        category: Annotated[str | None, "New category name (optional)"] = None,
         budgeted_amount: Annotated[
-            Optional[float], "New budgeted amount (optional)"
+            float | None, "New budgeted amount (optional)"
         ] = None,
         starting_balance: Annotated[
-            Optional[float], "New starting balance (optional)"
+            float | None, "New starting balance (optional)"
         ] = None,
-        description: Annotated[Optional[str], "New description (optional)"] = None,
+        description: Annotated[str | None, "New description (optional)"] = None,
     ) -> str:
         """Update an existing envelope's properties.
 
@@ -140,7 +144,7 @@ def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService):
 
     @mcp.tool()
     async def delete_envelope(
-        envelope_id: Annotated[int, "ID of the envelope to delete"]
+        envelope_id: Annotated[int, "ID of the envelope to delete"],
     ) -> str:
         """Delete an envelope by ID.
 
@@ -170,7 +174,7 @@ def _register_transaction_tools(mcp: FastMCP, transaction_service: TransactionSe
         description: Annotated[str, "Description of the transaction"],
         type: Annotated[str, "Type of transaction: 'income' or 'expense'"],
         date: Annotated[
-            Optional[str],
+            str | None,
             "Transaction date in YYYY-MM-DD format. Defaults to current date",
         ] = None,
     ) -> str:
@@ -195,8 +199,8 @@ def _register_transaction_tools(mcp: FastMCP, transaction_service: TransactionSe
     @mcp.tool()
     async def list_transactions(
         envelope_id: Annotated[
-            Optional[int], "Filter transactions by envelope ID (optional)"
-        ] = None
+            int | None, "Filter transactions by envelope ID (optional)"
+        ] = None,
     ) -> str:
         """Get transactions, optionally filtered by envelope.
 
@@ -217,7 +221,7 @@ def _register_transaction_tools(mcp: FastMCP, transaction_service: TransactionSe
 
     @mcp.tool()
     async def get_transaction(
-        transaction_id: Annotated[int, "ID of the transaction to retrieve"]
+        transaction_id: Annotated[int, "ID of the transaction to retrieve"],
     ) -> str:
         """Get specific transaction details by ID.
 
@@ -237,14 +241,14 @@ def _register_transaction_tools(mcp: FastMCP, transaction_service: TransactionSe
     @mcp.tool()
     async def update_transaction(
         transaction_id: Annotated[int, "ID of the transaction to update"],
-        envelope_id: Annotated[Optional[int], "New envelope ID (optional)"] = None,
-        amount: Annotated[Optional[float], "New amount (optional)"] = None,
-        description: Annotated[Optional[str], "New description (optional)"] = None,
+        envelope_id: Annotated[int | None, "New envelope ID (optional)"] = None,
+        amount: Annotated[float | None, "New amount (optional)"] = None,
+        description: Annotated[str | None, "New description (optional)"] = None,
         type: Annotated[
-            Optional[str], "New type: 'income' or 'expense' (optional)"
+            str | None, "New type: 'income' or 'expense' (optional)"
         ] = None,
         date: Annotated[
-            Optional[str], "New date in YYYY-MM-DD format (optional)"
+            str | None, "New date in YYYY-MM-DD format (optional)"
         ] = None,
     ) -> str:
         """Update an existing transaction's properties.
@@ -266,7 +270,7 @@ def _register_transaction_tools(mcp: FastMCP, transaction_service: TransactionSe
 
     @mcp.tool()
     async def delete_transaction(
-        transaction_id: Annotated[int, "ID of the transaction to delete"]
+        transaction_id: Annotated[int, "ID of the transaction to delete"],
     ) -> str:
         """Delete a transaction by ID.
 
@@ -289,7 +293,7 @@ def _register_utility_tools(mcp: FastMCP, envelope_service: EnvelopeService):
 
     @mcp.tool()
     async def get_envelope_balance(
-        envelope_id: Annotated[int, "ID of the envelope"]
+        envelope_id: Annotated[int, "ID of the envelope"],
     ) -> str:
         """Get current balance for specific envelope.
 

@@ -1,8 +1,9 @@
 """
 Unit tests for configuration and startup behavior with authentication.
 """
+
 import os
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 from app.config import Config, DevelopmentConfig, ProductionConfig, TestingConfig
 

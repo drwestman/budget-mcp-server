@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+
 from app.fastmcp_server import create_fastmcp_server
 
 

@@ -1,9 +1,11 @@
-import pytest
 from unittest.mock import MagicMock
-from app.services.envelope_service import EnvelopeService
+
+import pytest
+
 from app.models.database import (
     Database,
 )  # Assuming Database is the class used by the service
+from app.services.envelope_service import EnvelopeService
 
 
 # Fixture for the mocked database

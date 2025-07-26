@@ -5,6 +5,7 @@ This module provides the command-line interface for uvx installation using FastM
 """
 import os
 import sys
+
 from app.fastmcp_server import create_fastmcp_server
 
 
@@ -50,9 +51,10 @@ def main():
         # Run MCP server with stdio transport using hybrid approach
         # Create a native MCP server and copy tools from FastMCP for compatibility
         import asyncio
+
         from mcp.server import Server
         from mcp.server.stdio import stdio_server
-        from mcp.types import Tool, TextContent
+        from mcp.types import TextContent, Tool
 
         async def run_hybrid_mcp_stdio():
             # Create a native MCP server

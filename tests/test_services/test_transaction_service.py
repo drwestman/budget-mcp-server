@@ -1,7 +1,9 @@
-import pytest
 from unittest.mock import MagicMock
-from app.services.transaction_service import TransactionService
+
+import pytest
+
 from app.models.database import Database  # Assuming this is the DB class used
+from app.services.transaction_service import TransactionService
 
 
 # Fixture for the mocked database, similar to the one in envelope service tests

@@ -23,6 +23,20 @@ class Config:
         os.getenv("MOTHERDUCK_SYNC_ON_START", "false").lower() == "true"
     )
 
+    def __init__(self):
+        """Initialize configuration instance with environment variables."""
+        self.DATABASE_FILE = os.getenv("DATABASE_FILE", "budget_app.duckdb")
+        self.HTTPS_ENABLED = os.getenv("HTTPS_ENABLED", "false").lower() == "true"
+        self.SSL_CERT_FILE = os.getenv("SSL_CERT_FILE", "certs/server.crt")
+        self.SSL_KEY_FILE = os.getenv("SSL_KEY_FILE", "certs/server.key")
+        self.BEARER_TOKEN = os.getenv("BEARER_TOKEN")
+        self.MOTHERDUCK_TOKEN = os.getenv("MOTHERDUCK_TOKEN")
+        self.MOTHERDUCK_DATABASE = os.getenv("MOTHERDUCK_DATABASE", "budget_app")
+        self.DATABASE_MODE = os.getenv("DATABASE_MODE", "hybrid")
+        self.MOTHERDUCK_SYNC_ON_START = (
+            os.getenv("MOTHERDUCK_SYNC_ON_START", "false").lower() == "true"
+        )
+
     @staticmethod
     def ensure_data_directory():
         """Ensure the data directory exists for database file."""
@@ -118,6 +132,12 @@ class DevelopmentConfig(Config):
     # Reset database on each run during development
     RESET_DB_ON_START = True
 
+    def __init__(self):
+        super().__init__()
+        self.DEBUG = True
+        self.TESTING = False
+        self.RESET_DB_ON_START = True
+
 
 class ProductionConfig(Config):
     """Production configuration."""
@@ -125,6 +145,12 @@ class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
     RESET_DB_ON_START = False
+
+    def __init__(self):
+        super().__init__()
+        self.DEBUG = False
+        self.TESTING = False
+        self.RESET_DB_ON_START = False
 
 
 class TestingConfig(Config):
@@ -134,6 +160,13 @@ class TestingConfig(Config):
     TESTING = True
     DATABASE_FILE = ":memory:"  # Use in-memory database for tests
     RESET_DB_ON_START = True
+
+    def __init__(self):
+        super().__init__()
+        self.DEBUG = True
+        self.TESTING = True
+        self.DATABASE_FILE = ":memory:"
+        self.RESET_DB_ON_START = True
 
 
 # Configuration mapping

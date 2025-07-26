@@ -1,10 +1,13 @@
 """
 Tests for MotherDuck integration functionality.
 """
-import pytest
+
 from unittest.mock import Mock, patch
-from app.models.database import Database
+
+import pytest
+
 from app.config import Config
+from app.models.database import Database
 
 
 class TestMotherDuckConfiguration:

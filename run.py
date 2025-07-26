@@ -5,7 +5,9 @@ Run this file to start the FastMCP server with Streamable HTTP transport.
 """
 import os
 import sys
+
 import uvicorn
+
 from app.fastmcp_server import create_fastmcp_server
 
 

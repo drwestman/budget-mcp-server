@@ -1,8 +1,10 @@
 """
 Unit tests for bearer token authentication middleware.
 """
+
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 

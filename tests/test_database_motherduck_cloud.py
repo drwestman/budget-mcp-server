@@ -1,6 +1,8 @@
-import pytest
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock, call, patch
+
 import duckdb
+import pytest
+
 from app.models.database import Database
 
 
