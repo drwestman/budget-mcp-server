@@ -5,19 +5,21 @@ Unit tests for configuration and startup behavior with authentication.
 import os
 from unittest.mock import Mock, patch
 
+import pytest
+
 from app.config import Config, DevelopmentConfig, ProductionConfig, TestingConfig
 
 
 class TestAuthConfiguration:
     """Test configuration classes with authentication settings."""
 
-    def test_base_config_bearer_token_from_env(self):
+    def test_base_config_bearer_token_from_env(self) -> None:
         """Test base Config class reads BEARER_TOKEN from environment."""
         with patch.dict(os.environ, {"BEARER_TOKEN": "test-token-123"}):
             config = Config()
             assert config.BEARER_TOKEN == "test-token-123"
 
-    def test_base_config_bearer_token_none_when_missing(self):
+    def test_base_config_bearer_token_none_when_missing(self) -> None:
         """Test base Config class returns None when BEARER_TOKEN is missing."""
         with patch.dict(os.environ, {}, clear=True):
             if "BEARER_TOKEN" in os.environ:
@@ -25,13 +27,13 @@ class TestAuthConfiguration:
             config = Config()
             assert config.BEARER_TOKEN is None
 
-    def test_base_config_bearer_token_empty_string(self):
+    def test_base_config_bearer_token_empty_string(self) -> None:
         """Test base Config class handles empty BEARER_TOKEN."""
         with patch.dict(os.environ, {"BEARER_TOKEN": ""}):
             config = Config()
             assert config.BEARER_TOKEN == ""
 
-    def test_development_config_inherits_bearer_token(self):
+    def test_development_config_inherits_bearer_token(self) -> None:
         """Test DevelopmentConfig inherits BEARER_TOKEN from base Config."""
         with patch.dict(os.environ, {"BEARER_TOKEN": "dev-token"}):
             config = DevelopmentConfig()
@@ -39,7 +41,7 @@ class TestAuthConfiguration:
             assert config.DEBUG is True
             assert config.RESET_DB_ON_START is True
 
-    def test_production_config_inherits_bearer_token(self):
+    def test_production_config_inherits_bearer_token(self) -> None:
         """Test ProductionConfig inherits BEARER_TOKEN from base Config."""
         with patch.dict(os.environ, {"BEARER_TOKEN": "prod-token"}):
             config = ProductionConfig()
@@ -47,7 +49,7 @@ class TestAuthConfiguration:
             assert config.DEBUG is False
             assert config.RESET_DB_ON_START is False
 
-    def test_testing_config_inherits_bearer_token(self):
+    def test_testing_config_inherits_bearer_token(self) -> None:
         """Test TestingConfig inherits BEARER_TOKEN from base Config."""
         with patch.dict(os.environ, {"BEARER_TOKEN": "test-token"}):
             config = TestingConfig()
@@ -56,7 +58,7 @@ class TestAuthConfiguration:
             assert config.TESTING is True
             assert config.DATABASE_FILE == ":memory:"
 
-    def test_config_mapping_includes_all_environments(self):
+    def test_config_mapping_includes_all_environments(self) -> None:
         """Test that config mapping includes all environment configurations."""
         from app.config import config
 
@@ -74,63 +76,86 @@ class TestAuthConfiguration:
 class TestStartupValidation:
     """Test startup validation behavior for bearer token authentication."""
 
-    @patch("sys.exit")
+    @patch("app.fastmcp_server.create_fastmcp_server")
     @patch("builtins.print")
     def test_run_main_exits_without_bearer_token_in_production(
-        self, mock_print, mock_exit
-    ):
+        self, mock_print, mock_create_server
+    ) -> None:
         """Test that run.py main() exits when BEARER_TOKEN is missing in production."""
-        with patch.dict(os.environ, {
-            "APP_ENV": "production",
-            "DATABASE_MODE": "local"  # Use local mode to avoid MotherDuck validation
-        }, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "APP_ENV": "production",
+                "DATABASE_MODE": "local",  # Use local mode to avoid MotherDuck validation
+            },
+            clear=True,
+        ):
             if "BEARER_TOKEN" in os.environ:
                 del os.environ["BEARER_TOKEN"]
 
-            # Import and call main function
-            from run import main
+            # Mock Config.ensure_data_directory to avoid filesystem operations
+            with patch("app.config.Config.ensure_data_directory"):
+                # Import and call main function - it should exit with SystemExit
+                from run import main
 
-            main()
+                with pytest.raises(SystemExit) as exc_info:
+                    main()
 
-            # Should have printed error and exited
-            mock_print.assert_called()
-            mock_exit.assert_called_with(1)
+                # Should have exited with code 1
+                assert exc_info.value.code == 1
 
-            # Check that error message was printed
-            print_calls = [call[0][0] for call in mock_print.call_args_list]
-            error_messages = [msg for msg in print_calls if "BEARER_TOKEN" in msg]
-            assert len(error_messages) > 0
+                # Should have printed error
+                mock_print.assert_called()
 
-    @patch("sys.exit")
+                # Check that error message was printed
+                print_calls = [call[0][0] for call in mock_print.call_args_list]
+                error_messages = [msg for msg in print_calls if "BEARER_TOKEN" in msg]
+                assert len(error_messages) > 0
+
+                # Should not have tried to create server since it exits early
+                mock_create_server.assert_not_called()
+
+    @patch("app.fastmcp_server.create_fastmcp_server")
     @patch("builtins.print")
     def test_run_main_exits_with_empty_bearer_token_in_production(
-        self, mock_print, mock_exit
-    ):
+        self, mock_print, mock_create_server
+    ) -> None:
         """Test that run.py main() exits when BEARER_TOKEN is empty in production."""
-        with patch.dict(os.environ, {
-            "BEARER_TOKEN": "",
-            "APP_ENV": "production",
-            "DATABASE_MODE": "local"  # Use local mode to avoid MotherDuck validation
-        }):
-            from run import main
+        with patch.dict(
+            os.environ,
+            {
+                "BEARER_TOKEN": "",
+                "APP_ENV": "production",
+                "DATABASE_MODE": "local",  # Use local mode to avoid MotherDuck validation
+            },
+        ):
+            # Mock Config.ensure_data_directory to avoid filesystem operations
+            with patch("app.config.Config.ensure_data_directory"):
+                from run import main
 
-            main()
+                with pytest.raises(SystemExit) as exc_info:
+                    main()
 
-            # Should have printed error and exited
-            mock_print.assert_called()
-            mock_exit.assert_called_with(1)
+                # Should have exited with code 1
+                assert exc_info.value.code == 1
 
-            # Check that error message was printed
-            print_calls = [call[0][0] for call in mock_print.call_args_list]
-            error_messages = [msg for msg in print_calls if "BEARER_TOKEN" in msg]
-            assert len(error_messages) > 0
+                # Should have printed error
+                mock_print.assert_called()
+
+                # Check that error message was printed
+                print_calls = [call[0][0] for call in mock_print.call_args_list]
+                error_messages = [msg for msg in print_calls if "BEARER_TOKEN" in msg]
+                assert len(error_messages) > 0
+
+                # Should not have tried to create server since it exits early
+                mock_create_server.assert_not_called()
 
     @patch("app.fastmcp_server.create_fastmcp_server")
     @patch("builtins.print")
     @patch("sys.exit")
     def test_run_main_continues_with_valid_bearer_token(
         self, mock_exit, mock_print, mock_create_server
-    ):
+    ) -> None:
         """Test that run.py main() continues when BEARER_TOKEN is valid."""
         # Mock the FastMCP server
         mock_server = Mock()
@@ -140,16 +165,25 @@ class TestStartupValidation:
         mock_server.run = Mock()
         mock_create_server.return_value = mock_server
 
-        with patch.dict(os.environ, {
-            "BEARER_TOKEN": "valid-token-123",
-            "DATABASE_MODE": "local"  # Use local mode to avoid MotherDuck validation
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "BEARER_TOKEN": "valid-token-123",
+                "APP_ENV": "development",
+                "DATABASE_MODE": "local",  # Use local mode to avoid MotherDuck validation
+            },
+        ):
             # Mock Config.ensure_data_directory to avoid filesystem operations
             with patch("app.config.Config.ensure_data_directory"):
-                from run import main
+                # Import fresh to avoid module caching issues
+                import importlib
+
+                import run
+
+                importlib.reload(run)
 
                 try:
-                    main()
+                    run.main()
                 except SystemExit:
                     pass  # Expected since we're mocking the server run
 
@@ -172,21 +206,21 @@ class TestStartupValidation:
 class TestEnvironmentVariableHandling:
     """Test environment variable handling for authentication configuration."""
 
-    def test_bearer_token_with_special_characters(self):
+    def test_bearer_token_with_special_characters(self) -> None:
         """Test BEARER_TOKEN with special characters is handled correctly."""
         special_token = "token-with-!@#$%^&*()_+-={}[]|:;'<>?,./"
         with patch.dict(os.environ, {"BEARER_TOKEN": special_token}):
             config = Config()
             assert config.BEARER_TOKEN == special_token
 
-    def test_bearer_token_with_unicode(self):
+    def test_bearer_token_with_unicode(self) -> None:
         """Test BEARER_TOKEN with unicode characters is handled correctly."""
         unicode_token = "token-with-unicode-🔐🛡️🔒"
         with patch.dict(os.environ, {"BEARER_TOKEN": unicode_token}):
             config = Config()
             assert config.BEARER_TOKEN == unicode_token
 
-    def test_bearer_token_very_long(self):
+    def test_bearer_token_very_long(self) -> None:
         """Test BEARER_TOKEN with very long value is handled correctly."""
         long_token = "a" * 1000  # 1000 character token
         with patch.dict(os.environ, {"BEARER_TOKEN": long_token}):
@@ -194,7 +228,7 @@ class TestEnvironmentVariableHandling:
             assert config.BEARER_TOKEN == long_token
             assert len(config.BEARER_TOKEN) == 1000
 
-    def test_multiple_config_instances_same_token(self):
+    def test_multiple_config_instances_same_token(self) -> None:
         """Test multiple config instances read the same token value."""
         with patch.dict(os.environ, {"BEARER_TOKEN": "consistent-token"}):
             config1 = Config()
@@ -209,7 +243,7 @@ class TestEnvironmentVariableHandling:
 class TestSecurityConfiguration:
     """Test security-related configuration aspects."""
 
-    def test_bearer_token_not_logged_in_config(self):
+    def test_bearer_token_not_logged_in_config(self) -> None:
         """Test that bearer token is not inadvertently logged or exposed."""
         secret_token = "super-secret-token-do-not-log"
         with patch.dict(os.environ, {"BEARER_TOKEN": secret_token}):
@@ -219,7 +253,7 @@ class TestSecurityConfiguration:
             assert config.BEARER_TOKEN == secret_token
             # This test mainly documents that we should be careful about logging config
 
-    def test_bearer_token_case_sensitivity(self):
+    def test_bearer_token_case_sensitivity(self) -> None:
         """Test that BEARER_TOKEN environment variable is case-sensitive."""
         with patch.dict(os.environ, {"bearer_token": "lowercase-var"}, clear=True):
             # Should not pick up lowercase version
@@ -230,7 +264,7 @@ class TestSecurityConfiguration:
             config = Config()
             assert config.BEARER_TOKEN == "uppercase-var"
 
-    def test_config_immutability_concerns(self):
+    def test_config_immutability_concerns(self) -> None:
         """Test configuration behavior with environment changes."""
         # First set a token
         with patch.dict(os.environ, {"BEARER_TOKEN": "first-token"}):

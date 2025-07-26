@@ -1,7 +1,9 @@
 import asyncio
 import json
+from collections.abc import Generator
 
 import pytest
+from fastmcp import FastMCP
 
 from app.fastmcp_server import create_fastmcp_server
 
@@ -10,19 +12,19 @@ class TestFastMCPTools:
     """Test suite for FastMCP tools functionality."""
 
     @pytest.fixture
-    def server(self):
+    def server(self) -> FastMCP:
         """Create a test FastMCP server instance."""
         return create_fastmcp_server("testing")
 
     @pytest.fixture
-    def event_loop(self):
+    def event_loop(self) -> Generator[asyncio.AbstractEventLoop, None, None]:
         """Create an event loop for async tests."""
         loop = asyncio.new_event_loop()
         yield loop
         loop.close()
 
     @pytest.mark.asyncio
-    async def test_create_envelope_tool(self, server):
+    async def test_create_envelope_tool(self, server: FastMCP) -> None:
         """Test the create_envelope FastMCP tool."""
         # Get the tool function from server
         tools = await server.get_tools()
@@ -45,7 +47,7 @@ class TestFastMCPTools:
         assert "id" in envelope_data
 
     @pytest.mark.asyncio
-    async def test_list_envelopes_tool(self, server):
+    async def test_list_envelopes_tool(self, server: FastMCP) -> None:
         """Test the list_envelopes FastMCP tool."""
         # Get the tool functions from server
         tools = await server.get_tools()
@@ -77,7 +79,7 @@ class TestFastMCPTools:
         assert test_envelope["starting_balance"] == 50.0
 
     @pytest.mark.asyncio
-    async def test_create_transaction_tool(self, server):
+    async def test_create_transaction_tool(self, server: FastMCP) -> None:
         """Test the create_transaction FastMCP tool."""
         # Get the tool functions from server
         tools = await server.get_tools()
@@ -113,7 +115,7 @@ class TestFastMCPTools:
         assert "id" in transaction_data
 
     @pytest.mark.asyncio
-    async def test_get_budget_summary_tool(self, server):
+    async def test_get_budget_summary_tool(self, server: FastMCP) -> None:
         """Test the get_budget_summary FastMCP tool."""
         # Get the tool functions from server
         tools = await server.get_tools()
@@ -154,7 +156,7 @@ class TestFastMCPTools:
         assert summary_data["total_envelopes"] >= 1
 
     @pytest.mark.asyncio
-    async def test_error_handling(self, server):
+    async def test_error_handling(self, server: FastMCP) -> None:
         """Test error handling in FastMCP tools."""
         # Get the tool function from server
         tools = await server.get_tools()
@@ -171,7 +173,7 @@ class TestFastMCPTools:
         assert "Error:" in result
 
     @pytest.mark.asyncio
-    async def test_tool_availability(self, server):
+    async def test_tool_availability(self, server) -> None:
         """Test that all expected tools are available."""
         tools = await server.get_tools()
 
@@ -194,7 +196,7 @@ class TestFastMCPTools:
             assert tool_name in tools, f"Tool '{tool_name}' not found in server tools"
 
     @pytest.mark.asyncio
-    async def test_envelope_balance_tool(self, server):
+    async def test_envelope_balance_tool(self, server) -> None:
         """Test the get_envelope_balance FastMCP tool."""
         # Get the tool functions from server
         tools = await server.get_tools()
@@ -220,7 +222,7 @@ class TestFastMCPTools:
         assert balance_data["current_balance"] == 300.0
 
     @pytest.mark.asyncio
-    async def test_update_and_delete_envelope(self, server):
+    async def test_update_and_delete_envelope(self, server) -> None:
         """Test updating and deleting envelopes."""
         # Get the tool functions from server
         tools = await server.get_tools()

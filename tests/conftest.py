@@ -1,11 +1,12 @@
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.fastmcp_server import create_fastmcp_server
 
 
 @pytest.fixture(scope="session")
-def app():
+def app() -> FastAPI:
     """Session-wide test `FastAPI` application."""
     # Create a new app instance for testing using the 'testing' configuration
     # Disable authentication for testing purposes
@@ -14,6 +15,6 @@ def app():
 
 
 @pytest.fixture
-def client(app):
+def client(app: FastAPI) -> TestClient:
     """A test client for the app."""
     return TestClient(app)

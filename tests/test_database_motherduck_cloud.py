@@ -10,7 +10,7 @@ class TestMotherDuckCloudMode:
     """Test suite for MotherDuck cloud mode with database creation and fallback."""
 
     @patch("app.models.database.duckdb.connect")
-    def test_cloud_mode_db_creation_success(self, mock_connect):
+    def test_cloud_mode_db_creation_success(self, mock_connect: Mock) -> None:
         """Test successful cloud mode with DB pre-creation."""
         # Mock successful connections for both creation and main connection
         mock_creation_conn = Mock()
@@ -46,8 +46,8 @@ class TestMotherDuckCloudMode:
 
     @patch("app.models.database.duckdb.connect")
     def test_cloud_mode_db_creation_failure_main_connection_fallback(
-        self, mock_connect
-    ):
+        self, mock_connect: Mock
+    ) -> None:
         """Test cloud mode falling back to local when DB creation fails and main connection also fails."""
         # Mock failed creation, failed main connection, successful local fallback
         mock_local_conn = Mock()
@@ -76,7 +76,9 @@ class TestMotherDuckCloudMode:
         assert db.conn == mock_local_conn
 
     @patch("app.models.database.duckdb.connect")
-    def test_cloud_mode_main_connection_failure_fallback(self, mock_connect):
+    def test_cloud_mode_main_connection_failure_fallback(
+        self, mock_connect: Mock
+    ) -> None:
         """Test cloud mode falling back when main connection fails after successful creation."""
         # Mock successful creation, failed main connection, successful local fallback
         mock_creation_conn = Mock()
@@ -103,7 +105,7 @@ class TestMotherDuckCloudMode:
         assert db.connection_info["fallback"] is True
         assert db.connection_info["requested_mode"] == "cloud"
 
-    def test_cloud_mode_connection_status_fallback_warning(self):
+    def test_cloud_mode_connection_status_fallback_warning(self) -> None:
         """Test connection status includes fallback warnings for cloud mode."""
         with patch("app.models.database.duckdb.connect") as mock_connect:
             # Mock fallback scenario - creation fails, main connection fails, local succeeds
@@ -136,7 +138,7 @@ class TestMotherDuckCloudMode:
             assert status["connection_info"]["requested_mode"] == "cloud"
 
     @patch("app.models.database.duckdb.connect")
-    def test_hybrid_mode_connectivity_check_success(self, mock_connect):
+    def test_hybrid_mode_connectivity_check_success(self, mock_connect: Mock) -> None:
         """Test that hybrid mode correctly verifies cloud availability."""
         # Mock the three connections: creation, local, and the test connection for cloud
         mock_creation_conn = Mock()
@@ -162,7 +164,7 @@ class TestMotherDuckCloudMode:
         mock_test_conn.close.assert_called_once()
 
     @patch("app.models.database.duckdb.connect")
-    def test_cloud_mode_both_connections_fail(self, mock_connect):
+    def test_cloud_mode_both_connections_fail(self, mock_connect: Mock) -> None:
         """Test cloud mode when both MotherDuck and local fallback fail."""
         # Mock all connections failing - need 3 calls: creation, main, local fallback
         mock_connect.side_effect = [
@@ -183,7 +185,7 @@ class TestMotherDuckCloudMode:
                 motherduck_config=motherduck_config,
             )
 
-    def test_local_mode_unaffected_by_changes(self):
+    def test_local_mode_unaffected_by_changes(self) -> None:
         """Test that local mode behavior is unchanged."""
         with patch("app.models.database.duckdb.connect") as mock_connect:
             mock_conn = Mock()
@@ -199,7 +201,7 @@ class TestMotherDuckCloudMode:
             assert "fallback" not in db.connection_info
 
     @patch("app.models.database.duckdb.connect")
-    def test_cloud_mode_no_token_config_validation(self, mock_connect):
+    def test_cloud_mode_no_token_config_validation(self, mock_connect: Mock) -> None:
         """Test that cloud mode fails appropriately when no token is provided."""
         # Should fail during config validation, not during connection
         with pytest.raises(

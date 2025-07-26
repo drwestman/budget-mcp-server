@@ -1,4 +1,5 @@
 import os
+from collections.abc import Generator
 from datetime import date
 
 import pytest
@@ -7,7 +8,7 @@ from app.models.database import Database
 
 
 @pytest.fixture
-def db():
+def db() -> Generator[Database, None, None]:
     db_path = "test_temp_db.duckdb"
     # Ensure the database file does not exist before creating a new one
     if os.path.exists(db_path):
@@ -21,7 +22,7 @@ def db():
         os.remove(db_path)
 
 
-def test_insert_and_get_envelope(db):
+def test_insert_and_get_envelope(db: Database) -> None:
     # Test inserting a new envelope and retrieving it by ID
     env_id = db.insert_envelope("Groceries", 500.00, 100.00, "Monthly grocery budget")
     assert env_id is not None
@@ -33,7 +34,7 @@ def test_insert_and_get_envelope(db):
     assert envelope["description"] == "Monthly grocery budget"
 
 
-def test_get_envelope_by_category(db):
+def test_get_envelope_by_category(db: Database) -> None:
     # Test retrieving an envelope by its category
     db.insert_envelope("Utilities", 200.00, 50.00, "Electricity, Water, Internet")
     envelope = db.get_envelope_by_category("Utilities")
@@ -41,7 +42,7 @@ def test_get_envelope_by_category(db):
     assert envelope["category"] == "Utilities"
 
 
-def test_get_all_envelopes(db):
+def test_get_all_envelopes(db: Database) -> None:
     # Test retrieving all envelopes
     db.insert_envelope("Dining Out", 150.00, 0.00, "Eating at restaurants")
     db.insert_envelope("Transport", 100.00, 20.00, "Public transport and fuel")
@@ -52,7 +53,7 @@ def test_get_all_envelopes(db):
     assert "Transport" in categories
 
 
-def test_update_envelope(db):
+def test_update_envelope(db: Database) -> None:
     # Test updating an existing envelope's details
     env_id = db.insert_envelope(
         "Shopping", 300.00, 50.00, "Clothing and other shopping"
@@ -70,7 +71,7 @@ def test_update_envelope(db):
     assert envelope["description"] == "Online purchases"
 
 
-def test_delete_envelope(db):
+def test_delete_envelope(db: Database) -> None:
     # Test deleting an envelope
     env_id = db.insert_envelope(
         "Entertainment", 100.00, 10.00, "Movies, concerts, etc."
@@ -81,7 +82,7 @@ def test_delete_envelope(db):
     assert envelope is None
 
 
-def test_insert_duplicate_envelope_category_raises_value_error(db):
+def test_insert_duplicate_envelope_category_raises_value_error(db: Database) -> None:
     # Test that inserting an envelope with a duplicate category name raises a ValueError
     db.insert_envelope("Health", 100.00, 0.00, "Gym, supplements")
     with pytest.raises(ValueError) as excinfo:
@@ -89,7 +90,7 @@ def test_insert_duplicate_envelope_category_raises_value_error(db):
     assert "already exists" in str(excinfo.value)
 
 
-def test_insert_and_get_transaction(db):
+def test_insert_and_get_transaction(db: Database) -> None:
     # Test inserting a new transaction and retrieving it by ID
     env_id = db.insert_envelope("General", 100.00, 0.00, "General expenses")
     trans_id = db.insert_transaction(
@@ -105,7 +106,7 @@ def test_insert_and_get_transaction(db):
     assert transaction["type"] == "expense"
 
 
-def test_get_transactions_for_envelope(db):
+def test_get_transactions_for_envelope(db: Database) -> None:
     # Test retrieving all transactions for a specific envelope
     env_id1 = db.insert_envelope("Gifts", 100.00, 0.00, "Birthday gifts")
     env_id2 = db.insert_envelope("Holiday", 500.00, 100.00, "Vacation fund")
@@ -130,7 +131,7 @@ def test_get_transactions_for_envelope(db):
     assert transactions_env2[0]["description"] == "Flight tickets"
 
 
-def test_get_all_transactions(db):
+def test_get_all_transactions(db: Database) -> None:
     # Test retrieving all transactions from the database
     env_id1 = db.insert_envelope("Food", 300.00, 50.00, "Groceries and dining")
     env_id2 = db.insert_envelope("Travel", 400.00, 0.00, "Commuting and trips")
@@ -148,7 +149,7 @@ def test_get_all_transactions(db):
     assert transactions[2]["description"] == "Weekly groceries"
 
 
-def test_update_transaction(db):
+def test_update_transaction(db: Database) -> None:
     # Test updating an existing transaction's details
     env_id = db.insert_envelope("Bills", 500.00, 100.00, "Monthly bills")
     trans_id = db.insert_transaction(
@@ -174,7 +175,7 @@ def test_update_transaction(db):
     )  # Dates are stored and retrieved as ISO format strings
 
 
-def test_delete_transaction(db):
+def test_delete_transaction(db: Database) -> None:
     # Test deleting a transaction
     env_id = db.insert_envelope("Subscriptions", 50.00, 5.00, "Streaming services")
     trans_id = db.insert_transaction(
@@ -186,7 +187,9 @@ def test_delete_transaction(db):
     assert transaction is None
 
 
-def test_insert_transaction_invalid_envelope_id_raises_value_error(db):
+def test_insert_transaction_invalid_envelope_id_raises_value_error(
+    db: Database,
+) -> None:
     # Test that inserting a transaction with a non-existent envelope_id raises a ValueError
     non_existent_env_id = 999
     with pytest.raises(ValueError) as excinfo:
@@ -198,14 +201,14 @@ def test_insert_transaction_invalid_envelope_id_raises_value_error(db):
     )
 
 
-def test_get_envelope_current_balance_no_transactions(db):
+def test_get_envelope_current_balance_no_transactions(db: Database) -> None:
     # Test balance calculation when there are no transactions
     env_id = db.insert_envelope("Savings", 1000.00, 500.00, "Emergency fund")
     balance = db.get_envelope_current_balance(env_id)
     assert balance == 500.00  # Should be the starting balance
 
 
-def test_get_envelope_current_balance_with_expenses(db):
+def test_get_envelope_current_balance_with_expenses(db: Database) -> None:
     # Test balance calculation with only expense transactions
     env_id = db.insert_envelope("Fun Money", 200.00, 100.00, "Discretionary spending")
     db.insert_transaction(env_id, 20.00, "Movie ticket", date(2023, 6, 1), "expense")
@@ -216,7 +219,7 @@ def test_get_envelope_current_balance_with_expenses(db):
     assert balance == 50.00  # 100 - 20 - 30
 
 
-def test_get_envelope_current_balance_with_income(db):
+def test_get_envelope_current_balance_with_income(db: Database) -> None:
     # Test balance calculation with only income transactions
     env_id = db.insert_envelope("Side Hustle", 0.00, 0.00, "Freelance income")
     db.insert_transaction(
@@ -229,7 +232,7 @@ def test_get_envelope_current_balance_with_income(db):
     assert balance == 350.00  # 0 + 150 + 200
 
 
-def test_get_envelope_current_balance_mixed_transactions(db):
+def test_get_envelope_current_balance_mixed_transactions(db: Database) -> None:
     # Test balance calculation with a mix of income and expense transactions
     env_id = db.insert_envelope("Checking Account", 0.00, 1000.00, "Main checking")
     db.insert_transaction(
@@ -248,7 +251,7 @@ def test_get_envelope_current_balance_mixed_transactions(db):
     assert balance == 1250.00
 
 
-def test_get_envelope_current_balance_non_existent_envelope(db):
+def test_get_envelope_current_balance_non_existent_envelope(db: Database) -> None:
     # Test balance calculation for a non-existent envelope ID
     balance = db.get_envelope_current_balance(999)  # Assuming 999 is not a valid ID
     assert balance is None

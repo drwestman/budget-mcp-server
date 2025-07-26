@@ -10,7 +10,7 @@ from app.services.envelope_service import EnvelopeService
 
 # Fixture for the mocked database
 @pytest.fixture
-def mock_db():
+def mock_db() -> MagicMock:
     db = MagicMock(spec=Database)  # Use spec for more accurate mocking
     # Setup common mock return values if needed for multiple tests
     db.get_envelope_by_category.return_value = None  # Default: category does not exist
@@ -29,12 +29,14 @@ def mock_db():
 
 # Fixture for EnvelopeService with mocked db
 @pytest.fixture
-def envelope_service(mock_db):
+def envelope_service(mock_db: MagicMock) -> EnvelopeService:
     return EnvelopeService(db=mock_db)
 
 
 # Tests for create_envelope
-def test_create_envelope_success(envelope_service, mock_db):
+def test_create_envelope_success(
+    envelope_service: EnvelopeService, mock_db: MagicMock
+) -> None:
     category = "Groceries"
     budgeted_amount = 200.0
     starting_balance = 50.0
@@ -75,7 +77,9 @@ def test_create_envelope_success(envelope_service, mock_db):
     assert created_envelope["budgeted_amount"] == budgeted_amount
 
 
-def test_create_envelope_category_exists(envelope_service, mock_db):
+def test_create_envelope_duplicate_category(
+    envelope_service: EnvelopeService, mock_db: MagicMock
+) -> None:
     category = "Utilities"
     budgeted_amount = 150.0
     starting_balance = 0.0
@@ -121,7 +125,9 @@ def test_create_envelope_invalid_input(
 
 
 # Tests for get_envelope
-def test_get_envelope_success(envelope_service, mock_db):
+def test_get_envelope_success(
+    envelope_service: EnvelopeService, mock_db: MagicMock
+) -> None:
     envelope_id = 1
     expected_db_envelope = {
         "id": envelope_id,
@@ -145,19 +151,25 @@ def test_get_envelope_success(envelope_service, mock_db):
     assert envelope["current_balance"] == expected_balance
 
 
-def test_get_envelope_not_found(envelope_service, mock_db):
+def test_get_envelope_not_found(
+    envelope_service: EnvelopeService, mock_db: MagicMock
+) -> None:
     envelope_id = 99  # Non-existent ID
     mock_db.get_envelope_by_id.return_value = None
 
-    envelope = envelope_service.get_envelope(envelope_id)
+    with pytest.raises(ValueError) as excinfo:
+        envelope_service.get_envelope(envelope_id)
+
+    assert f"Envelope with ID {envelope_id} not found." in str(excinfo.value)
 
     mock_db.get_envelope_by_id.assert_called_once_with(envelope_id)
     mock_db.get_envelope_current_balance.assert_not_called()  # Should not be called if envelope not found
-    assert envelope is None
 
 
 # Tests for get_all_envelopes
-def test_get_all_envelopes_success(envelope_service, mock_db):
+def test_get_all_envelopes_success(
+    envelope_service: EnvelopeService, mock_db: MagicMock
+) -> None:
     db_envelopes = [
         {
             "id": 1,
@@ -198,7 +210,9 @@ def test_get_all_envelopes_success(envelope_service, mock_db):
     assert envelopes[1]["current_balance"] == 30
 
 
-def test_get_all_envelopes_empty(envelope_service, mock_db):
+def test_get_all_envelopes_empty_result(
+    envelope_service: EnvelopeService, mock_db: MagicMock
+) -> None:
     mock_db.get_all_envelopes.return_value = []
 
     envelopes = envelope_service.get_all_envelopes()
@@ -209,7 +223,9 @@ def test_get_all_envelopes_empty(envelope_service, mock_db):
 
 
 # Tests for update_envelope
-def test_update_envelope_success_all_fields(envelope_service, mock_db):
+def test_update_envelope_success(
+    envelope_service: EnvelopeService, mock_db: MagicMock
+) -> None:
     envelope_id = 1
     update_data = {
         "category": "Updated Groceries",
@@ -248,7 +264,9 @@ def test_update_envelope_success_all_fields(envelope_service, mock_db):
     assert updated_envelope["budgeted_amount"] == update_data["budgeted_amount"]
 
 
-def test_update_envelope_success_partial_fields(envelope_service, mock_db):
+def test_update_envelope_partial_fields(
+    envelope_service: EnvelopeService, mock_db: MagicMock
+) -> None:
     envelope_id = 1
     update_data = {"budgeted_amount": 300.0}
 
@@ -377,7 +395,9 @@ def test_update_envelope_invalid_input_types(
     mock_db.update_envelope.assert_not_called()
 
 
-def test_update_envelope_db_update_fails_returns_false(envelope_service, mock_db):
+def test_update_envelope_db_failure(
+    envelope_service: EnvelopeService, mock_db: MagicMock
+) -> None:
     envelope_id = 1
     update_data = {"budgeted_amount": 150.0}
     mock_db.update_envelope.return_value = (
@@ -403,7 +423,9 @@ def test_update_envelope_db_update_fails_returns_false(envelope_service, mock_db
 
 
 # Tests for delete_envelope
-def test_delete_envelope_success(envelope_service, mock_db):
+def test_delete_envelope_success(
+    envelope_service: EnvelopeService, mock_db: MagicMock
+) -> None:
     envelope_id = 1
     # Simulate that the envelope exists before deletion
     mock_db.get_envelope_by_id.return_value = {
@@ -424,7 +446,9 @@ def test_delete_envelope_success(envelope_service, mock_db):
     }
 
 
-def test_delete_envelope_not_found(envelope_service, mock_db):
+def test_delete_envelope_not_found(
+    envelope_service: EnvelopeService, mock_db: MagicMock
+) -> None:
     envelope_id = 99  # Non-existent ID
     # Simulate that the envelope does not exist
     mock_db.get_envelope_by_id.return_value = None
@@ -436,7 +460,9 @@ def test_delete_envelope_not_found(envelope_service, mock_db):
     mock_db.get_envelope_by_id.assert_called_once_with(envelope_id)
 
 
-def test_delete_envelope_db_error(envelope_service, mock_db):
+def test_delete_envelope_database_error(
+    envelope_service: EnvelopeService, mock_db: MagicMock
+) -> None:
     envelope_id = 1
     mock_db.get_envelope_by_id.return_value = {
         "id": envelope_id,

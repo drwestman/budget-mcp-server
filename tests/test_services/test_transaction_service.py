@@ -1,3 +1,4 @@
+from datetime import date as date_class
 from unittest.mock import MagicMock
 
 import pytest
@@ -8,7 +9,7 @@ from app.services.transaction_service import TransactionService
 
 # Fixture for the mocked database, similar to the one in envelope service tests
 @pytest.fixture
-def mock_db():
+def mock_db() -> MagicMock:
     db = MagicMock(spec=Database)
     # Default mock return values for common DB calls in TransactionService
     db.get_envelope_by_id.return_value = {
@@ -32,12 +33,14 @@ def mock_db():
 
 # Fixture for TransactionService with mocked db
 @pytest.fixture
-def transaction_service(mock_db):
+def transaction_service(mock_db: MagicMock) -> TransactionService:
     return TransactionService(db=mock_db)
 
 
 # Tests for create_transaction
-def test_create_transaction_success(transaction_service, mock_db):
+def test_create_transaction_success(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     envelope_id = 1
     amount = 50.75
     description = "Lunch"
@@ -68,7 +71,7 @@ def test_create_transaction_success(transaction_service, mock_db):
 
     mock_db.get_envelope_by_id.assert_called_once_with(envelope_id)
     mock_db.insert_transaction.assert_called_once_with(
-        envelope_id, amount, description, date, type
+        envelope_id, amount, description, date_class(2024, 7, 25), type
     )
     mock_db.get_transaction_by_id.assert_called_once_with(
         201
@@ -80,7 +83,9 @@ def test_create_transaction_success(transaction_service, mock_db):
     assert created_transaction["type"] == "expense"
 
 
-def test_create_transaction_envelope_not_found(transaction_service, mock_db):
+def test_create_transaction_nonexistent_envelope(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     envelope_id = 99  # Non-existent envelope
     mock_db.get_envelope_by_id.return_value = None  # Simulate envelope not found
 
@@ -121,8 +126,13 @@ def test_create_transaction_envelope_not_found(transaction_service, mock_db):
     ],
 )
 def test_create_transaction_invalid_input(
-    transaction_service, mock_db, amount, date, type, expected_message
-):
+    transaction_service: TransactionService,
+    mock_db: MagicMock,
+    amount: float,
+    date: str,
+    type: str,
+    expected_message: str,
+) -> None:
     envelope_id = 1
     # Ensure envelope exists for these tests, so other validations are triggered
     mock_db.get_envelope_by_id.return_value = {
@@ -140,7 +150,9 @@ def test_create_transaction_invalid_input(
 
 
 # Tests for get_transaction
-def test_get_transaction_success(transaction_service, mock_db):
+def test_get_transaction_success(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     transaction_id = 101
     expected_db_transaction = {
         "id": transaction_id,
@@ -160,18 +172,23 @@ def test_get_transaction_success(transaction_service, mock_db):
     assert transaction["description"] == "Dinner"
 
 
-def test_get_transaction_not_found(transaction_service, mock_db):
+def test_get_transaction_not_found(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     transaction_id = 999  # Non-existent ID
     mock_db.get_transaction_by_id.return_value = None
 
-    transaction = transaction_service.get_transaction(transaction_id)
+    with pytest.raises(ValueError) as excinfo:
+        transaction_service.get_transaction(transaction_id)
 
+    assert f"Transaction with ID {transaction_id} not found." in str(excinfo.value)
     mock_db.get_transaction_by_id.assert_called_once_with(transaction_id)
-    assert transaction is None
 
 
 # Tests for get_transactions_by_envelope
-def test_get_transactions_by_envelope_success(transaction_service, mock_db):
+def test_get_transactions_by_envelope_success(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     envelope_id = 1
     # Simulate envelope exists
     mock_db.get_envelope_by_id.return_value = {
@@ -208,7 +225,9 @@ def test_get_transactions_by_envelope_success(transaction_service, mock_db):
     assert transactions[0]["id"] == 101
 
 
-def test_get_transactions_by_envelope_not_found(transaction_service, mock_db):
+def test_get_transactions_by_envelope_nonexistent_envelope(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     envelope_id = 99  # Non-existent envelope
     mock_db.get_envelope_by_id.return_value = None  # Simulate envelope not found
 
@@ -219,7 +238,9 @@ def test_get_transactions_by_envelope_not_found(transaction_service, mock_db):
     mock_db.get_transactions_for_envelope.assert_not_called()
 
 
-def test_get_transactions_by_envelope_empty(transaction_service, mock_db):
+def test_get_transactions_by_envelope_empty_result(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     envelope_id = 2
     mock_db.get_envelope_by_id.return_value = {
         "id": envelope_id,
@@ -237,7 +258,9 @@ def test_get_transactions_by_envelope_empty(transaction_service, mock_db):
 
 
 # Tests for get_all_transactions
-def test_get_all_transactions_success(transaction_service, mock_db):
+def test_get_all_transactions_success(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     all_db_transactions = [
         {
             "id": 101,
@@ -265,7 +288,9 @@ def test_get_all_transactions_success(transaction_service, mock_db):
     assert transactions[1]["id"] == 201
 
 
-def test_get_all_transactions_empty(transaction_service, mock_db):
+def test_get_all_transactions_empty_result(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     mock_db.get_all_transactions.return_value = []
 
     transactions = transaction_service.get_all_transactions()
@@ -275,7 +300,9 @@ def test_get_all_transactions_empty(transaction_service, mock_db):
 
 
 # Tests for update_transaction
-def test_update_transaction_success_all_fields(transaction_service, mock_db):
+def test_update_transaction_success(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     transaction_id = 101
     update_data = {
         "envelope_id": 2,  # Changing envelope
@@ -300,7 +327,17 @@ def test_update_transaction_success_all_fields(transaction_service, mock_db):
     )
 
     mock_db.get_envelope_by_id.assert_called_once_with(update_data["envelope_id"])
-    mock_db.update_transaction.assert_called_once_with(transaction_id, **update_data)
+    # Expected data with parsed date
+    expected_update_data = {
+        "envelope_id": 2,
+        "amount": 75.25,
+        "description": "Updated lunch expense",
+        "date": date_class(2024, 7, 27),
+        "type": "expense",
+    }
+    mock_db.update_transaction.assert_called_once_with(
+        transaction_id, **expected_update_data
+    )
     mock_db.get_transaction_by_id.assert_called_once_with(
         transaction_id
     )  # From service's get_transaction call
@@ -310,7 +347,9 @@ def test_update_transaction_success_all_fields(transaction_service, mock_db):
     assert updated_transaction["envelope_id"] == update_data["envelope_id"]
 
 
-def test_update_transaction_success_partial_fields(transaction_service, mock_db):
+def test_update_transaction_partial_fields(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     transaction_id = 102
     update_data = {"description": "Just a new description"}
 
@@ -347,7 +386,9 @@ def test_update_transaction_success_partial_fields(transaction_service, mock_db)
     assert updated_transaction["description"] == "Just a new description"
 
 
-def test_update_transaction_target_envelope_not_found(transaction_service, mock_db):
+def test_update_transaction_invalid_envelope(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     transaction_id = 103
     invalid_envelope_id = 999
     update_data = {"envelope_id": invalid_envelope_id, "amount": 100.0}
@@ -395,7 +436,9 @@ def test_update_transaction_invalid_input_types(
     mock_db.update_transaction.assert_not_called()
 
 
-def test_update_transaction_db_update_fails_returns_false(transaction_service, mock_db):
+def test_update_transaction_db_failure(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     transaction_id = 105
     update_data = {"amount": 150.0}
     # Simulate DB update failure (e.g. row not found for transaction_id)
@@ -424,7 +467,9 @@ def test_update_transaction_db_update_fails_returns_false(transaction_service, m
 
 
 # Tests for delete_transaction
-def test_delete_transaction_success(transaction_service, mock_db):
+def test_delete_transaction_success(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     transaction_id = 101
     # Simulate that the transaction exists before deletion
     mock_db.get_transaction_by_id.return_value = {"id": transaction_id, "amount": 50}
@@ -443,7 +488,9 @@ def test_delete_transaction_success(transaction_service, mock_db):
     }
 
 
-def test_delete_transaction_not_found(transaction_service, mock_db):
+def test_delete_transaction_not_found(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     transaction_id = 999  # Non-existent ID
     # Simulate that the transaction does not exist
     mock_db.get_transaction_by_id.return_value = None
@@ -455,7 +502,9 @@ def test_delete_transaction_not_found(transaction_service, mock_db):
     mock_db.get_transaction_by_id.assert_called_once_with(transaction_id)
 
 
-def test_delete_transaction_db_error(transaction_service, mock_db):
+def test_delete_transaction_database_error(
+    transaction_service: TransactionService, mock_db: MagicMock
+) -> None:
     transaction_id = 101
     mock_db.get_transaction_by_id.return_value = {"id": transaction_id, "amount": 50}
     mock_db.delete_transaction.side_effect = Exception("Database error")

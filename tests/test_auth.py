@@ -14,7 +14,7 @@ from app.auth import BearerTokenMiddleware, create_auth_middleware
 class TestBearerTokenMiddleware:
     """Test cases for BearerTokenMiddleware class."""
 
-    def test_init_with_valid_token(self):
+    def test_init_with_valid_token(self) -> None:
         """Test middleware initialization with valid bearer token."""
         app = Mock()
         token = "test-token-123"
@@ -23,7 +23,7 @@ class TestBearerTokenMiddleware:
         assert middleware.bearer_token == token
         assert middleware.app == app
 
-    def test_init_with_empty_token_raises_error(self):
+    def test_init_with_empty_token_raises_error(self) -> None:
         """Test middleware initialization with empty token raises ValueError."""
         app = Mock()
 
@@ -34,7 +34,7 @@ class TestBearerTokenMiddleware:
             BearerTokenMiddleware(app, bearer_token=None)
 
     @pytest.mark.asyncio
-    async def test_dispatch_missing_authorization_header(self):
+    async def test_dispatch_missing_authorization_header(self) -> None:
         """Test request without Authorization header returns 401."""
         app = Mock()
         middleware = BearerTokenMiddleware(app, bearer_token="test-token")
@@ -52,7 +52,7 @@ class TestBearerTokenMiddleware:
         call_next.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_dispatch_invalid_authorization_header_format(self):
+    async def test_dispatch_invalid_authorization_header_format(self) -> None:
         """Test request with invalid Authorization header format returns 401."""
         app = Mock()
         middleware = BearerTokenMiddleware(app, bearer_token="test-token")
@@ -70,7 +70,7 @@ class TestBearerTokenMiddleware:
         call_next.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_dispatch_missing_token_in_bearer_header(self):
+    async def test_dispatch_missing_token_in_bearer_header(self) -> None:
         """Test request with Bearer header but no token returns 401."""
         app = Mock()
         middleware = BearerTokenMiddleware(app, bearer_token="test-token")
@@ -89,7 +89,7 @@ class TestBearerTokenMiddleware:
         call_next.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_dispatch_bearer_with_space_but_no_token(self):
+    async def test_dispatch_bearer_with_space_but_no_token(self) -> None:
         """Test request with 'Bearer ' but no actual token returns 401."""
         app = Mock()
         middleware = BearerTokenMiddleware(app, bearer_token="test-token")
@@ -108,7 +108,7 @@ class TestBearerTokenMiddleware:
         call_next.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_dispatch_invalid_bearer_token(self):
+    async def test_dispatch_invalid_bearer_token(self) -> None:
         """Test request with invalid bearer token returns 401."""
         app = Mock()
         middleware = BearerTokenMiddleware(app, bearer_token="correct-token")
@@ -126,7 +126,7 @@ class TestBearerTokenMiddleware:
         call_next.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_dispatch_valid_bearer_token_allows_request(self):
+    async def test_dispatch_valid_bearer_token_allows_request(self) -> None:
         """Test request with valid bearer token proceeds to next handler."""
         app = Mock()
         middleware = BearerTokenMiddleware(app, bearer_token="correct-token")
@@ -145,17 +145,17 @@ class TestBearerTokenMiddleware:
         call_next.assert_called_once_with(request)
 
     @pytest.mark.asyncio
-    async def test_dispatch_case_insensitive_authorization_header(self):
+    async def test_dispatch_case_insensitive_authorization_header(self) -> None:
         """Test that Authorization header is case-insensitive."""
         app = Mock()
         middleware = BearerTokenMiddleware(app, bearer_token="test-token")
 
         # Create a case-insensitive headers mock
         class CaseInsensitiveHeaders:
-            def __init__(self, headers):
+            def __init__(self, headers: dict[str, str]) -> None:
                 self._headers = {k.lower(): v for k, v in headers.items()}
 
-            def get(self, key, default=None):
+            def get(self, key: str, default: str | None = None) -> str | None:
                 return self._headers.get(key.lower(), default)
 
         # Mock request with lowercase authorization header
@@ -171,7 +171,7 @@ class TestBearerTokenMiddleware:
         call_next.assert_called_once_with(request)
 
     @pytest.mark.asyncio
-    async def test_dispatch_bearer_token_with_spaces(self):
+    async def test_dispatch_bearer_token_with_spaces(self) -> None:
         """Test bearer token with spaces is handled correctly."""
         app = Mock()
         token_with_spaces = "token with spaces"
@@ -193,7 +193,7 @@ class TestBearerTokenMiddleware:
 class TestCreateAuthMiddleware:
     """Test cases for create_auth_middleware factory function."""
 
-    def test_create_auth_middleware_with_valid_token(self):
+    def test_create_auth_middleware_with_valid_token(self) -> None:
         """Test factory function creates middleware with valid token."""
         token = "test-token-123"
         middleware_factory = create_auth_middleware(token)
@@ -209,7 +209,7 @@ class TestCreateAuthMiddleware:
         assert middleware.bearer_token == token
         assert middleware.app == app
 
-    def test_create_auth_middleware_with_empty_token_raises_error(self):
+    def test_create_auth_middleware_with_empty_token_raises_error(self) -> None:
         """Test factory function with empty token raises ValueError."""
         with pytest.raises(ValueError, match="Bearer token cannot be empty"):
             create_auth_middleware("")
@@ -222,7 +222,7 @@ class TestMiddlewareIntegration:
     """Integration tests for middleware with FastAPI app."""
 
     @pytest.mark.asyncio
-    async def test_middleware_integration_with_fastapi_headers(self):
+    async def test_middleware_integration_with_fastapi_headers(self) -> None:
         """Test middleware works with actual FastAPI Request headers."""
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
@@ -231,7 +231,7 @@ class TestMiddlewareIntegration:
         app.add_middleware(BearerTokenMiddleware, bearer_token="test-token")
 
         @app.get("/test")
-        async def test_endpoint():
+        async def test_endpoint() -> None:
             return {"message": "success"}
 
         client = TestClient(app)

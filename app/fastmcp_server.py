@@ -5,7 +5,7 @@ FastMCP server implementation for Budget Cash Envelope MCP Server.
 import json
 import logging
 import os
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastmcp import FastMCP
 
@@ -17,11 +17,11 @@ from app.services.transaction_service import TransactionService
 logger = logging.getLogger(__name__)
 
 
-def _create_authenticated_http_app(original_http_app, bearer_token):
+def _create_authenticated_http_app(original_http_app: Any, bearer_token: str) -> Any:
     """Create authenticated HTTP app using composition instead of monkey-patching."""
     _http_app_instance = None
 
-    def http_app_with_auth(*args, **kwargs):
+    def http_app_with_auth(*args: Any, **kwargs: Any) -> Any:
         nonlocal _http_app_instance
         if _http_app_instance is None:
             from app.auth import BearerTokenMiddleware
@@ -35,16 +35,19 @@ def _create_authenticated_http_app(original_http_app, bearer_token):
     return http_app_with_auth
 
 
-def _configure_authentication(mcp: FastMCP, app_config, enable_auth: bool):
+def _configure_authentication(mcp: FastMCP, app_config: Any, enable_auth: bool) -> None:
     """Configure bearer token authentication middleware if enabled using composition."""
     if enable_auth and app_config.BEARER_TOKEN:
         # Replace the http_app method with authenticated version using composition
-        mcp.http_app = _create_authenticated_http_app(
-            mcp.http_app, app_config.BEARER_TOKEN
+        # Use setattr to avoid mypy method assignment error
+        setattr(
+            mcp,
+            "http_app",
+            _create_authenticated_http_app(mcp.http_app, app_config.BEARER_TOKEN),
         )
 
 
-def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService):
+def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService) -> None:
     """Register all envelope management tools."""
 
     @mcp.tool()
@@ -66,6 +69,11 @@ def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService):
         Creates a new budget envelope with the specified parameters.
         """
         try:
+            # Set defaults for None values
+            if starting_balance is None:
+                starting_balance = 0.0
+            if description is None:
+                description = ""
             envelope = envelope_service.create_envelope(
                 category, budgeted_amount, starting_balance, description
             )
@@ -162,7 +170,9 @@ def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService):
             return f"Internal error: An unexpected error occurred: {str(e)}"
 
 
-def _register_transaction_tools(mcp: FastMCP, transaction_service: TransactionService):
+def _register_transaction_tools(
+    mcp: FastMCP, transaction_service: TransactionService
+) -> None:
     """Register all transaction management tools."""
 
     @mcp.tool()
@@ -183,6 +193,11 @@ def _register_transaction_tools(mcp: FastMCP, transaction_service: TransactionSe
         Creates a new income or expense transaction for the specified envelope.
         """
         try:
+            # Use current date if not provided
+            if date is None:
+                from datetime import datetime
+
+                date = datetime.now().strftime("%Y-%m-%d")
             transaction = transaction_service.create_transaction(
                 envelope_id, amount, description, date, type
             )
@@ -247,9 +262,7 @@ def _register_transaction_tools(mcp: FastMCP, transaction_service: TransactionSe
         type: Annotated[
             str | None, "New type: 'income' or 'expense' (optional)"
         ] = None,
-        date: Annotated[
-            str | None, "New date in YYYY-MM-DD format (optional)"
-        ] = None,
+        date: Annotated[str | None, "New date in YYYY-MM-DD format (optional)"] = None,
     ) -> str:
         """Update an existing transaction's properties.
 
@@ -288,7 +301,7 @@ def _register_transaction_tools(mcp: FastMCP, transaction_service: TransactionSe
             return f"Internal error: An unexpected error occurred: {str(e)}"
 
 
-def _register_utility_tools(mcp: FastMCP, envelope_service: EnvelopeService):
+def _register_utility_tools(mcp: FastMCP, envelope_service: EnvelopeService) -> None:
     """Register all utility tools."""
 
     @mcp.tool()
@@ -389,7 +402,9 @@ def _register_utility_tools(mcp: FastMCP, envelope_service: EnvelopeService):
             return f"Internal error: An unexpected error occurred: {str(e)}"
 
 
-def create_fastmcp_server(config_name=None, enable_auth=True):
+def create_fastmcp_server(
+    config_name: str | None = None, enable_auth: bool = True
+) -> FastMCP:
     """
     Factory function to create FastMCP server with all tools registered.
 
@@ -429,12 +444,12 @@ def create_fastmcp_server(config_name=None, enable_auth=True):
     transaction_service = TransactionService(db)
 
     # Create FastMCP server
-    mcp = FastMCP("budget-envelope-server")
+    mcp: FastMCP = FastMCP("budget-envelope-server")
 
-    # Store services for tool access
-    mcp.envelope_service = envelope_service
-    mcp.transaction_service = transaction_service
-    mcp.db = db
+    # Store services for tool access (use setattr to avoid attribute errors)
+    setattr(mcp, "envelope_service", envelope_service)
+    setattr(mcp, "transaction_service", transaction_service)
+    setattr(mcp, "db", db)
 
     # Configure authentication using composition
     _configure_authentication(mcp, app_config, enable_auth)

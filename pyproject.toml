@@ -51,7 +51,7 @@ python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
-exclude = ["data/", "certs/", "tests/"]
+exclude = ["data/", "certs/"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]

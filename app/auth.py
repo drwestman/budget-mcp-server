@@ -3,16 +3,18 @@ Authentication middleware for FastMCP server with bearer token validation.
 """
 
 import secrets
+from collections.abc import Awaitable, Callable
 
 from fastapi import Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
 
 
 class BearerTokenMiddleware(BaseHTTPMiddleware):
     """Bearer token authentication middleware for FastMCP server."""
 
-    def __init__(self, app, bearer_token: str):
+    def __init__(self, app: ASGIApp, bearer_token: str) -> None:
         """
         Initialize bearer token authentication middleware.
 
@@ -25,7 +27,50 @@ class BearerTokenMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.bearer_token = bearer_token
 
-    async def dispatch(self, request: Request, call_next):
+    def _validate_auth_header(self, auth_header: str | None) -> JSONResponse | None:
+        """Validate the Authorization header format. Returns error response or None."""
+        if not auth_header:
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"error": "Missing Authorization header"},
+            )
+
+        if not auth_header.startswith("Bearer "):
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={
+                    "error": (
+                        "Invalid Authorization header format. Expected: Bearer <token>"
+                    )
+                },
+            )
+        return None
+
+    def _extract_token(self, auth_header: str) -> str | JSONResponse:
+        """Extract token from Authorization header. Returns token or error response."""
+        try:
+            return auth_header.split(" ", 1)[1]
+        except IndexError:
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"error": "Missing bearer token"},
+            )
+
+    def _validate_token(self, token: str) -> JSONResponse | None:
+        """
+        Validate token using constant-time comparison.
+        Returns error response or None.
+        """
+        if not secrets.compare_digest(token, self.bearer_token):
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"error": "Invalid bearer token"},
+            )
+        return None
+
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> JSONResponse | Response:
         """
         Middleware function to validate bearer token from Authorization header.
 
@@ -36,46 +81,31 @@ class BearerTokenMiddleware(BaseHTTPMiddleware):
         Returns:
             Response from next handler if authenticated, 401 error if not
         """
-        # Get Authorization header
         auth_header = request.headers.get("Authorization")
 
-        if not auth_header:
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"error": "Missing Authorization header"},
-            )
+        # Validate Authorization header format
+        error_response = self._validate_auth_header(auth_header)
+        if error_response:
+            return error_response
 
-        # Check if it's a Bearer token
-        if not auth_header.startswith("Bearer "):
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={
-                    "error": "Invalid Authorization header format. Expected: Bearer <token>"
-                },
-            )
-
-        # Extract token
-        try:
-            token = auth_header.split(" ", 1)[1]
-        except IndexError:
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"error": "Missing bearer token"},
-            )
+        # Extract token from header
+        token_or_error = self._extract_token(auth_header)
+        if isinstance(token_or_error, JSONResponse):
+            return token_or_error
 
         # Validate token using constant-time comparison to prevent timing attacks
-        if not secrets.compare_digest(token, self.bearer_token):
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"error": "Invalid bearer token"},
-            )
+        error_response = self._validate_token(token_or_error)
+        if error_response:
+            return error_response
 
         # Token is valid, proceed to next handler
         response = await call_next(request)
         return response
 
 
-def create_auth_middleware(bearer_token: str):
+def create_auth_middleware(
+    bearer_token: str,
+) -> Callable[[ASGIApp], BearerTokenMiddleware]:
     """
     Factory function to create bearer token authentication middleware class.
 
@@ -92,7 +122,7 @@ def create_auth_middleware(bearer_token: str):
         raise ValueError("Bearer token cannot be empty")
 
     # Return a middleware class factory
-    def middleware_factory(app):
+    def middleware_factory(app: ASGIApp) -> BearerTokenMiddleware:
         return BearerTokenMiddleware(app, bearer_token)
 
     return middleware_factory

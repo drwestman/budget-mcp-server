@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 class TestMCPTools:
     """Test suite for MCP tools functionality using TestClient."""
 
-    def test_create_envelope_tool(self, client: TestClient):
+    def test_create_envelope_tool(self, client: TestClient) -> None:
         """Test the create_envelope MCP tool via HTTP."""
         response = client.post(
             "/tools/create_envelope",
@@ -25,7 +25,7 @@ class TestMCPTools:
         assert envelope_data["starting_balance"] == 100.0
         assert "id" in envelope_data
 
-    def test_list_envelopes_tool(self, client: TestClient):
+    def test_list_envelopes_tool(self, client: TestClient) -> None:
         """Test the list_envelopes MCP tool via HTTP."""
         # Create a test envelope first
         client.post(
@@ -51,7 +51,7 @@ class TestMCPTools:
         assert test_envelope["budgeted_amount"] == 200.0
         assert test_envelope["starting_balance"] == 50.0
 
-    def test_create_transaction_tool(self, client: TestClient):
+    def test_create_transaction_tool(self, client: TestClient) -> None:
         """Test the create_transaction MCP tool via HTTP."""
         # Create an envelope first
         envelope_response = client.post(
@@ -85,7 +85,7 @@ class TestMCPTools:
         assert transaction_data["type"] == "expense"
         assert "id" in transaction_data
 
-    def test_get_budget_summary_tool(self, client: TestClient):
+    def test_get_budget_summary_tool(self, client: TestClient) -> None:
         """Test the get_budget_summary MCP tool via HTTP."""
         # Create test data
         envelope_response = client.post(
@@ -120,7 +120,7 @@ class TestMCPTools:
         assert "total_spent" in summary_data
         assert "envelopes" in summary_data
 
-    def test_error_handling(self, client: TestClient):
+    def test_error_handling(self, client: TestClient) -> None:
         """Test error handling in MCP tools via HTTP."""
         response = client.post(
             "/tools/create_envelope",
@@ -134,7 +134,7 @@ class TestMCPTools:
         assert response.status_code == 200  # The tool itself returns a 200
         assert "Error:" in response.text
 
-    def test_tool_schema_generation(self, client: TestClient):
+    def test_tool_schema_generation(self, client: TestClient) -> None:
         """Test the input schema generation for MCP tools via HTTP."""
         response = client.get("/tools")
         assert response.status_code == 200
