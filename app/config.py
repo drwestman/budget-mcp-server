@@ -5,24 +5,6 @@ import re
 class Config:
     """Base configuration class."""
 
-    DATABASE_FILE = os.getenv("DATABASE_FILE", "budget_app.duckdb")
-
-    # HTTPS Configuration
-    HTTPS_ENABLED = os.getenv("HTTPS_ENABLED", "false").lower() == "true"
-    SSL_CERT_FILE = os.getenv("SSL_CERT_FILE", "certs/server.crt")
-    SSL_KEY_FILE = os.getenv("SSL_KEY_FILE", "certs/server.key")
-
-    # Authentication Configuration
-    BEARER_TOKEN = os.getenv("BEARER_TOKEN")
-
-    # MotherDuck Configuration
-    MOTHERDUCK_TOKEN = os.getenv("MOTHERDUCK_TOKEN")
-    MOTHERDUCK_DATABASE = os.getenv("MOTHERDUCK_DATABASE", "budget_app")
-    DATABASE_MODE = os.getenv("DATABASE_MODE", "hybrid")  # local, cloud, hybrid
-    MOTHERDUCK_SYNC_ON_START = (
-        os.getenv("MOTHERDUCK_SYNC_ON_START", "false").lower() == "true"
-    )
-
     def __init__(self):
         """Initialize configuration instance with environment variables."""
         self.DATABASE_FILE = os.getenv("DATABASE_FILE", "budget_app.duckdb")
@@ -92,19 +74,18 @@ class Config:
         """
         return mode in ["local", "cloud", "hybrid"]
 
-    @classmethod
-    def validate_motherduck_config(cls):
+    def validate_motherduck_config(self):
         """
         Validate MotherDuck configuration settings.
 
         Returns:
             tuple: (is_valid, error_message)
         """
-        mode = cls.DATABASE_MODE
-        token = cls.MOTHERDUCK_TOKEN
+        mode = self.DATABASE_MODE
+        token = self.MOTHERDUCK_TOKEN
 
         # Validate database mode
-        if not cls.validate_database_mode(mode):
+        if not self.validate_database_mode(mode):
             return (
                 False,
                 f"Invalid DATABASE_MODE '{mode}'. Must be 'local', 'cloud', or 'hybrid'",
@@ -115,7 +96,7 @@ class Config:
             if not token:
                 return False, f"MOTHERDUCK_TOKEN is required for DATABASE_MODE '{mode}'"
 
-            if not cls.validate_motherduck_token(token):
+            if not self.validate_motherduck_token(token):
                 return (
                     False,
                     "MOTHERDUCK_TOKEN appears to be invalid (should be JWT token or 32+ character hex string)",
@@ -127,11 +108,6 @@ class Config:
 class DevelopmentConfig(Config):
     """Development configuration."""
 
-    DEBUG = True
-    TESTING = False
-    # Reset database on each run during development
-    RESET_DB_ON_START = True
-
     def __init__(self):
         super().__init__()
         self.DEBUG = True
@@ -142,10 +118,6 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     """Production configuration."""
 
-    DEBUG = False
-    TESTING = False
-    RESET_DB_ON_START = False
-
     def __init__(self):
         super().__init__()
         self.DEBUG = False
@@ -155,11 +127,6 @@ class ProductionConfig(Config):
 
 class TestingConfig(Config):
     """Testing configuration."""
-
-    DEBUG = True
-    TESTING = True
-    DATABASE_FILE = ":memory:"  # Use in-memory database for tests
-    RESET_DB_ON_START = True
 
     def __init__(self):
         super().__init__()

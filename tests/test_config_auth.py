@@ -80,7 +80,10 @@ class TestStartupValidation:
         self, mock_print, mock_exit
     ):
         """Test that run.py main() exits when BEARER_TOKEN is missing in production."""
-        with patch.dict(os.environ, {"APP_ENV": "production"}, clear=True):
+        with patch.dict(os.environ, {
+            "APP_ENV": "production",
+            "DATABASE_MODE": "local"  # Use local mode to avoid MotherDuck validation
+        }, clear=True):
             if "BEARER_TOKEN" in os.environ:
                 del os.environ["BEARER_TOKEN"]
 
@@ -104,7 +107,11 @@ class TestStartupValidation:
         self, mock_print, mock_exit
     ):
         """Test that run.py main() exits when BEARER_TOKEN is empty in production."""
-        with patch.dict(os.environ, {"BEARER_TOKEN": "", "APP_ENV": "production"}):
+        with patch.dict(os.environ, {
+            "BEARER_TOKEN": "",
+            "APP_ENV": "production",
+            "DATABASE_MODE": "local"  # Use local mode to avoid MotherDuck validation
+        }):
             from run import main
 
             main()
@@ -133,7 +140,10 @@ class TestStartupValidation:
         mock_server.run = Mock()
         mock_create_server.return_value = mock_server
 
-        with patch.dict(os.environ, {"BEARER_TOKEN": "valid-token-123"}):
+        with patch.dict(os.environ, {
+            "BEARER_TOKEN": "valid-token-123",
+            "DATABASE_MODE": "local"  # Use local mode to avoid MotherDuck validation
+        }):
             # Mock Config.ensure_data_directory to avoid filesystem operations
             with patch("app.config.Config.ensure_data_directory"):
                 from run import main

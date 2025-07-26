@@ -2,6 +2,7 @@
 Tests for MotherDuck integration functionality.
 """
 
+import os
 from unittest.mock import Mock, patch
 
 import pytest
@@ -56,34 +57,39 @@ class TestMotherDuckConfiguration:
 
     def test_validate_motherduck_config_local_mode(self):
         """Test MotherDuck config validation in local mode."""
-        with patch.object(Config, "DATABASE_MODE", "local"):
-            with patch.object(Config, "MOTHERDUCK_TOKEN", None):
-                is_valid, error_msg = Config.validate_motherduck_config()
-                assert is_valid is True
-                assert error_msg is None
+        with patch.dict(os.environ, {"DATABASE_MODE": "local"}, clear=True):
+            config = Config()
+            is_valid, error_msg = config.validate_motherduck_config()
+            assert is_valid is True
+            assert error_msg is None
 
     def test_validate_motherduck_config_cloud_mode_valid(self):
         """Test MotherDuck config validation in cloud mode with valid token."""
-        with patch.object(Config, "DATABASE_MODE", "cloud"):
-            with patch.object(
-                Config, "MOTHERDUCK_TOKEN", "1234567890abcdef1234567890abcdef"
-            ):
-                is_valid, error_msg = Config.validate_motherduck_config()
-                assert is_valid is True
-                assert error_msg is None
+        with patch.dict(
+            os.environ,
+            {
+                "DATABASE_MODE": "cloud",
+                "MOTHERDUCK_TOKEN": "1234567890abcdef1234567890abcdef",
+            },
+        ):
+            config = Config()
+            is_valid, error_msg = config.validate_motherduck_config()
+            assert is_valid is True
+            assert error_msg is None
 
     def test_validate_motherduck_config_cloud_mode_missing_token(self):
         """Test MotherDuck config validation in cloud mode without token."""
-        with patch.object(Config, "DATABASE_MODE", "cloud"):
-            with patch.object(Config, "MOTHERDUCK_TOKEN", None):
-                is_valid, error_msg = Config.validate_motherduck_config()
-                assert is_valid is False
-                assert "MOTHERDUCK_TOKEN is required" in error_msg
+        with patch.dict(os.environ, {"DATABASE_MODE": "cloud"}, clear=True):
+            config = Config()
+            is_valid, error_msg = config.validate_motherduck_config()
+            assert is_valid is False
+            assert "MOTHERDUCK_TOKEN is required" in error_msg
 
     def test_validate_motherduck_config_invalid_mode(self):
         """Test MotherDuck config validation with invalid mode."""
-        with patch.object(Config, "DATABASE_MODE", "invalid"):
-            is_valid, error_msg = Config.validate_motherduck_config()
+        with patch.dict(os.environ, {"DATABASE_MODE": "invalid"}):
+            config = Config()
+            is_valid, error_msg = config.validate_motherduck_config()
             assert is_valid is False
             assert "Invalid DATABASE_MODE" in error_msg
 
