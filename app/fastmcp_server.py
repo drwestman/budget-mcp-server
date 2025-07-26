@@ -35,7 +35,7 @@ def _configure_authentication(mcp: FastMCP, app_config, enable_auth: bool):
             return _http_app_instance
 
         # Replace the http_app method to ensure consistent instance with middleware
-        mcp.http_app = http_app_with_auth
+        setattr(mcp, "http_app", http_app_with_auth)
 
 
 def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService):
@@ -346,11 +346,8 @@ def _register_utility_tools(mcp: FastMCP, envelope_service: EnvelopeService):
         try:
             status = envelope_service.db.get_connection_status()
             sync_status = envelope_service.db.get_sync_status()
-            
-            result = {
-                "connection": status,
-                "sync": sync_status
-            }
+
+            result = {"connection": status, "sync": sync_status}
             return json.dumps(result, indent=2)
         except Exception as e:
             return f"Internal error: An unexpected error occurred: {str(e)}"
@@ -412,15 +409,15 @@ def create_fastmcp_server(config_name=None, enable_auth=True):
     motherduck_config = None
     if app_config.MOTHERDUCK_TOKEN:
         motherduck_config = {
-            'token': app_config.MOTHERDUCK_TOKEN,
-            'database': app_config.MOTHERDUCK_DATABASE
+            "token": app_config.MOTHERDUCK_TOKEN,
+            "database": app_config.MOTHERDUCK_DATABASE,
         }
 
     # Initialize database and services with MotherDuck support
     db = Database(
         db_path=app_config.DATABASE_FILE,
         mode=app_config.DATABASE_MODE,
-        motherduck_config=motherduck_config
+        motherduck_config=motherduck_config,
     )
     envelope_service = EnvelopeService(db)
     transaction_service = TransactionService(db)

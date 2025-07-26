@@ -17,16 +17,18 @@ def main():
 
         # Ensure data directory exists for database file
         from app.config import Config
+
         Config.ensure_data_directory()
 
         # Get configuration for database cleanup
         from app.config import config
+
         app_config = config[config_name]()
 
         # Clean up database file on start for development
         if app_config.RESET_DB_ON_START:
             db_file = app_config.DATABASE_FILE
-            if db_file != ':memory:' and os.path.exists(db_file):
+            if db_file != ":memory:" and os.path.exists(db_file):
                 os.remove(db_file)
                 print(f"Removed existing database file: {db_file}", file=sys.stderr)
 
@@ -40,7 +42,10 @@ def main():
         print(f"Environment: {config_name}", file=sys.stderr)
         print(f"Database File: {app_config.DATABASE_FILE}", file=sys.stderr)
         print(f"Debug Mode: {app_config.DEBUG}", file=sys.stderr)
-        print("Starting Budget Envelope FastMCP Server with stdio transport...", file=sys.stderr)
+        print(
+            "Starting Budget Envelope FastMCP Server with stdio transport...",
+            file=sys.stderr,
+        )
 
         # Run MCP server with stdio transport using hybrid approach
         # Create a native MCP server and copy tools from FastMCP for compatibility
@@ -52,10 +57,10 @@ def main():
         async def run_hybrid_mcp_stdio():
             # Create a native MCP server
             mcp_server = Server("budget-envelope-server")
-            
+
             # Get tools from FastMCP and register them with native MCP server
             fastmcp_tools = await mcp.get_tools()
-            
+
             # Register tools with native MCP server
             @mcp_server.list_tools()
             async def list_tools():
@@ -65,7 +70,7 @@ def main():
                     tool = Tool(
                         name=name,
                         description=fastmcp_tool.description,
-                        inputSchema=fastmcp_tool.input_schema
+                        inputSchema=fastmcp_tool.input_schema,
                     )
                     tools.append(tool)
                 return tools
@@ -78,16 +83,18 @@ def main():
                     return [TextContent(type="text", text=result)]
                 else:
                     return [TextContent(type="text", text=f"Tool {name} not found")]
-            
+
             # Run the native MCP server with stdio transport
             async with stdio_server() as (read_stream, write_stream):
                 await mcp_server.run(
-                    read_stream, write_stream, mcp_server.create_initialization_options()
+                    read_stream,
+                    write_stream,
+                    mcp_server.create_initialization_options(),
                 )
 
         asyncio.run(run_hybrid_mcp_stdio())
         return 0
-        
+
     except KeyboardInterrupt:
         print("\nShutting down Budget MCP Server...", file=sys.stderr)
         return 0
