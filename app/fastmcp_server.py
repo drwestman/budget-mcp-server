@@ -16,26 +16,28 @@ from app.services.transaction_service import TransactionService
 logger = logging.getLogger(__name__)
 
 
+def _create_authenticated_http_app(original_http_app, bearer_token):
+    """Create authenticated HTTP app using composition instead of monkey-patching."""
+    _http_app_instance = None
+
+    def http_app_with_auth(*args, **kwargs):
+        nonlocal _http_app_instance
+        if _http_app_instance is None:
+            from app.auth import BearerTokenMiddleware
+            _http_app_instance = original_http_app(*args, **kwargs)
+            _http_app_instance.add_middleware(
+                BearerTokenMiddleware, bearer_token=bearer_token
+            )
+        return _http_app_instance
+
+    return http_app_with_auth
+
+
 def _configure_authentication(mcp: FastMCP, app_config, enable_auth: bool):
-    """Configure bearer token authentication middleware if enabled."""
+    """Configure bearer token authentication middleware if enabled using composition."""
     if enable_auth and app_config.BEARER_TOKEN:
-        from app.auth import BearerTokenMiddleware
-
-        # Create a wrapper function to add middleware when the HTTP app is first accessed
-        original_http_app = mcp.http_app
-        _http_app_instance = None
-
-        def http_app_with_auth(*args, **kwargs):
-            nonlocal _http_app_instance
-            if _http_app_instance is None:
-                _http_app_instance = original_http_app(*args, **kwargs)
-                _http_app_instance.add_middleware(
-                    BearerTokenMiddleware, bearer_token=app_config.BEARER_TOKEN
-                )
-            return _http_app_instance
-
-        # Replace the http_app method to ensure consistent instance with middleware
-        setattr(mcp, "http_app", http_app_with_auth)
+        # Replace the http_app method with authenticated version using composition
+        mcp.http_app = _create_authenticated_http_app(mcp.http_app, app_config.BEARER_TOKEN)
 
 
 def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService):
@@ -430,7 +432,7 @@ def create_fastmcp_server(config_name=None, enable_auth=True):
     mcp.transaction_service = transaction_service
     mcp.db = db
 
-    # Configure authentication
+    # Configure authentication using composition
     _configure_authentication(mcp, app_config, enable_auth)
 
     # Register all tools
