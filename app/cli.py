@@ -5,10 +5,11 @@ This module provides the command-line interface for uvx installation using FastM
 """
 import os
 import sys
+
 from app.fastmcp_server import create_fastmcp_server
 
 
-def main():
+def main() -> int:
     """Main entry point for the CLI."""
     try:
         # Get configuration environment from environment variable
@@ -26,7 +27,7 @@ def main():
         app_config = config[config_name]()
 
         # Clean up database file on start for development
-        if app_config.RESET_DB_ON_START:
+        if hasattr(app_config, "RESET_DB_ON_START") and app_config.RESET_DB_ON_START:
             db_file = app_config.DATABASE_FILE
             if db_file != ":memory:" and os.path.exists(db_file):
                 os.remove(db_file)
@@ -41,7 +42,7 @@ def main():
         # Print configuration info to stderr (not to interfere with MCP stdio)
         print(f"Environment: {config_name}", file=sys.stderr)
         print(f"Database File: {app_config.DATABASE_FILE}", file=sys.stderr)
-        print(f"Debug Mode: {app_config.DEBUG}", file=sys.stderr)
+        print(f"Debug Mode: {getattr(app_config, 'DEBUG', False)}", file=sys.stderr)
         print(
             "Starting Budget Envelope FastMCP Server with stdio transport...",
             file=sys.stderr,
@@ -50,36 +51,41 @@ def main():
         # Run MCP server with stdio transport using hybrid approach
         # Create a native MCP server and copy tools from FastMCP for compatibility
         import asyncio
+
         from mcp.server import Server
         from mcp.server.stdio import stdio_server
-        from mcp.types import Tool, TextContent
+        from mcp.types import TextContent, Tool
 
-        async def run_hybrid_mcp_stdio():
+        async def run_hybrid_mcp_stdio() -> None:
             # Create a native MCP server
-            mcp_server = Server("budget-envelope-server")
+            mcp_server: Server = Server("budget-envelope-server")
 
             # Get tools from FastMCP and register them with native MCP server
             fastmcp_tools = await mcp.get_tools()
 
             # Register tools with native MCP server
             @mcp_server.list_tools()
-            async def list_tools():
+            async def list_tools() -> list[Tool]:
                 tools = []
                 for name, fastmcp_tool in fastmcp_tools.items():
                     # Convert FastMCP tool to MCP Tool
                     tool = Tool(
                         name=name,
-                        description=fastmcp_tool.description,
-                        inputSchema=fastmcp_tool.input_schema,
+                        description=getattr(fastmcp_tool, "description", ""),
+                        inputSchema=getattr(fastmcp_tool, "input_schema", {}),
                     )
                     tools.append(tool)
                 return tools
 
             @mcp_server.call_tool()
-            async def call_tool(name: str, arguments: dict):
+            async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 # Call the FastMCP tool and return result
                 if name in fastmcp_tools:
-                    result = await fastmcp_tools[name].func(**arguments)
+                    tool_func = getattr(fastmcp_tools[name], "func", None)
+                    if tool_func:
+                        result = await tool_func(**arguments)
+                    else:
+                        result = f"Tool {name} has no callable function"
                     return [TextContent(type="text", text=result)]
                 else:
                     return [TextContent(type="text", text=f"Tool {name} not found")]

@@ -1,7 +1,8 @@
-import duckdb
 import logging
 from datetime import date
-from typing import Optional, Dict, Any, Union, List, cast
+from typing import Any, cast
+
+import duckdb
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ class Database:
         self,
         db_path: str,
         mode: str = "local",
-        motherduck_config: Optional[Dict[str, str]] = None,
+        motherduck_config: dict[str, str] | None = None,
     ):
         """
         Initializes the Database connection and ensures tables exist.
@@ -31,9 +32,9 @@ class Database:
         self.db_path = db_path
         self.mode = mode
         self.motherduck_config = motherduck_config or {}
-        self.conn: Optional[duckdb.DuckDBPyConnection] = None
+        self.conn: duckdb.DuckDBPyConnection | None = None
         self.is_cloud_connected = False
-        self.connection_info: Dict[str, Any] = {}
+        self.connection_info: dict[str, Any] = {}
 
         # Validate configuration before attempting connection
         self._validate_config()
@@ -44,7 +45,7 @@ class Database:
 
         logger.info(f"Database initialized in '{mode}' mode")
 
-    def _validate_config(self):
+    def _validate_config(self) -> None:
         """Validate configuration before attempting connection."""
         if self.mode not in ["local", "cloud", "hybrid"]:
             raise ValueError(
@@ -78,7 +79,7 @@ class Database:
         else:
             raise ValueError(f"Unsupported database mode: {self.mode}")
 
-    def _ensure_motherduck_db_exists(self):
+    def _ensure_motherduck_db_exists(self) -> None:
         """
         Ensures the MotherDuck database exists by creating it if necessary.
         Supports both cloud and hybrid modes.
@@ -111,7 +112,7 @@ class Database:
             )
             # Let the main connection logic handle the fallback
 
-    def _connect(self):
+    def _connect(self) -> None:
         """Establishes a connection to the DuckDB database based on the configured mode."""
         try:
             connection_string = self._get_connection_string()
@@ -198,8 +199,11 @@ class Database:
                 logger.error(f"Error connecting to local database: {e}")
                 raise
 
-    def _create_tables(self):
+    def _create_tables(self) -> None:
         """Creates the 'envelopes' and 'transactions' tables if they don't exist."""
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
         try:
             self.conn.execute(
                 """
@@ -233,15 +237,24 @@ class Database:
             logger.error(f"Error creating tables: {e}")
             raise
 
-    def close(self):
+    def close(self) -> None:
         """Closes the database connection."""
         if self.conn:
             self.conn.close()
             logger.info("Database connection closed.")
 
     # --- Envelope CRUD Operations ---
-    def insert_envelope(self, category, budgeted_amount, starting_balance, description):
+    def insert_envelope(
+        self,
+        category: str,
+        budgeted_amount: float,
+        starting_balance: float,
+        description: str | None,
+    ) -> int | None:
         """Inserts a new envelope into the database."""
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
         try:
             result = self.conn.execute(
                 "INSERT INTO envelopes (id, category, budgeted_amount, starting_balance, description) VALUES (nextval('envelopes_id_seq'), ?, ?, ?, ?) RETURNING id;",
@@ -262,8 +275,11 @@ class Database:
             logger.error(f"Error inserting envelope: {e}")
             raise
 
-    def get_envelope_by_id(self, envelope_id):
+    def get_envelope_by_id(self, envelope_id: int) -> dict[str, Any] | None:
         """Retrieves an envelope by its ID."""
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
         try:
             result = self.conn.execute(
                 "SELECT id, category, budgeted_amount, starting_balance, description FROM envelopes WHERE id = ?;",
@@ -282,8 +298,11 @@ class Database:
             logger.error(f"Error getting envelope by ID: {e}")
             raise
 
-    def get_envelope_by_category(self, category):
+    def get_envelope_by_category(self, category: str) -> dict[str, Any] | None:
         """Retrieves an envelope by its category name."""
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
         try:
             result = self.conn.execute(
                 "SELECT id, category, budgeted_amount, starting_balance, description FROM envelopes WHERE category = ?;",
@@ -302,8 +321,11 @@ class Database:
             logger.error(f"Error getting envelope by category: {e}")
             raise
 
-    def get_all_envelopes(self):
+    def get_all_envelopes(self) -> list[dict[str, Any]]:
         """Retrieves all envelopes."""
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
         try:
             results = self.conn.execute(
                 "SELECT id, category, budgeted_amount, starting_balance, description FROM envelopes;"
@@ -324,15 +346,18 @@ class Database:
 
     def update_envelope(
         self,
-        envelope_id,
-        category=None,
-        budgeted_amount=None,
-        starting_balance=None,
-        description=None,
-    ):
+        envelope_id: int,
+        category: str | None = None,
+        budgeted_amount: float | None = None,
+        starting_balance: float | None = None,
+        description: str | None = None,
+    ) -> bool:
         """Updates an existing envelope."""
-        updates = []
-        params = []
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
+        updates: list[str] = []
+        params: list[str | float | int] = []
         if category is not None:
             updates.append("category = ?")
             params.append(category)
@@ -363,8 +388,11 @@ class Database:
             logger.error(f"Error updating envelope: {e}")
             raise
 
-    def delete_envelope(self, envelope_id):
+    def delete_envelope(self, envelope_id: int) -> bool:
         """Deletes an envelope by its ID."""
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
         try:
             self.conn.execute("DELETE FROM envelopes WHERE id = ?;", (envelope_id,))
             self.conn.commit()
@@ -374,8 +402,18 @@ class Database:
             raise
 
     # --- Transaction CRUD Operations ---
-    def insert_transaction(self, envelope_id, amount, description, date, type):
+    def insert_transaction(
+        self,
+        envelope_id: int,
+        amount: float,
+        description: str | None,
+        date: date,
+        type: str,
+    ) -> int | None:
         """Inserts a new transaction into the database."""
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
         try:
             result = self.conn.execute(
                 "INSERT INTO transactions (id, envelope_id, amount, description, date, type) VALUES (nextval('transactions_id_seq'), ?, ?, ?, ?, ?) RETURNING id;",
@@ -392,8 +430,11 @@ class Database:
             logger.error(f"Error inserting transaction: {e}")
             raise
 
-    def get_transaction_by_id(self, transaction_id):
+    def get_transaction_by_id(self, transaction_id: int) -> dict[str, Any] | None:
         """Retrieves a transaction by its ID."""
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
         try:
             result = self.conn.execute(
                 "SELECT id, envelope_id, amount, description, date, type FROM transactions WHERE id = ?;",
@@ -405,9 +446,11 @@ class Database:
                     "envelope_id": result[1],
                     "amount": result[2],
                     "description": result[3],
-                    "date": result[4].isoformat()
-                    if isinstance(result[4], date)
-                    else result[4],
+                    "date": (
+                        result[4].isoformat()
+                        if isinstance(result[4], date)
+                        else result[4]
+                    ),
                     "type": result[5],
                 }
             return None
@@ -415,8 +458,11 @@ class Database:
             logger.error(f"Error getting transaction by ID: {e}")
             raise
 
-    def get_transactions_for_envelope(self, envelope_id):
+    def get_transactions_for_envelope(self, envelope_id: int) -> list[dict[str, Any]]:
         """Retrieves all transactions for a given envelope ID."""
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
         try:
             results = self.conn.execute(
                 "SELECT id, envelope_id, amount, description, date, type FROM transactions WHERE envelope_id = ? ORDER BY date DESC;",
@@ -437,8 +483,11 @@ class Database:
             logger.error(f"Error getting transactions for envelope: {e}")
             raise
 
-    def get_all_transactions(self):
+    def get_all_transactions(self) -> list[dict[str, Any]]:
         """Retrieves all transactions."""
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
         try:
             results = self.conn.execute(
                 "SELECT id, envelope_id, amount, description, date, type FROM transactions ORDER BY date DESC;"
@@ -460,16 +509,19 @@ class Database:
 
     def update_transaction(
         self,
-        transaction_id,
-        envelope_id=None,
-        amount=None,
-        description=None,
-        date=None,
-        type=None,
-    ):
+        transaction_id: int,
+        envelope_id: int | None = None,
+        amount: float | None = None,
+        description: str | None = None,
+        date: date | None = None,
+        type: str | None = None,
+    ) -> bool:
         """Updates an existing transaction."""
-        updates = []
-        params = []
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
+        updates: list[str] = []
+        params: list[int | float | str | date] = []
         if envelope_id is not None:
             updates.append("envelope_id = ?")
             params.append(envelope_id)
@@ -503,8 +555,11 @@ class Database:
             logger.error(f"Error updating transaction: {e}")
             raise
 
-    def delete_transaction(self, transaction_id):
+    def delete_transaction(self, transaction_id: int) -> bool:
         """Deletes a transaction by its ID."""
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
         try:
             self.conn.execute(
                 "DELETE FROM transactions WHERE id = ?;", (transaction_id,)
@@ -515,8 +570,11 @@ class Database:
             logger.error(f"Error deleting transaction: {e}")
             raise
 
-    def get_envelope_current_balance(self, envelope_id):
+    def get_envelope_current_balance(self, envelope_id: int) -> float | None:
         """Calculates the current balance for an envelope."""
+        if self.conn is None:
+            raise ValueError("Database connection not available")
+
         try:
             envelope = self.get_envelope_by_id(envelope_id)
             if not envelope:
@@ -531,7 +589,7 @@ class Database:
                     current_balance -= t["amount"]
                 elif t["type"] == "income":
                     current_balance += t["amount"]
-            return current_balance
+            return float(current_balance)
         except Exception as e:
             logger.error(
                 f"Error calculating current balance for envelope {envelope_id}: {e}"
@@ -540,7 +598,7 @@ class Database:
 
     # --- MotherDuck Cloud Operations ---
 
-    def get_connection_status(self) -> Dict[str, Any]:
+    def get_connection_status(self) -> dict[str, Any]:
         """
         Get current connection status and information.
 
@@ -551,9 +609,11 @@ class Database:
             "mode": self.mode,
             "is_cloud_connected": self.is_cloud_connected,
             "connection_info": self.connection_info.copy(),
-            "motherduck_database": self.motherduck_config.get("database", "budget_app")
-            if self.motherduck_config
-            else None,
+            "motherduck_database": (
+                self.motherduck_config.get("database", "budget_app")
+                if self.motherduck_config
+                else None
+            ),
         }
 
         # Add warning if we fell back from cloud mode
@@ -561,13 +621,13 @@ class Database:
             self.connection_info.get("fallback")
             and self.connection_info.get("requested_mode") == "cloud"
         ):
-            status[
-                "warning"
-            ] = "Requested cloud mode but fell back to local-only connection"
+            status["warning"] = (
+                "Requested cloud mode but fell back to local-only connection"
+            )
 
         return status
 
-    def sync_to_cloud(self) -> Dict[str, Any]:
+    def sync_to_cloud(self) -> dict[str, Any]:
         """
         Synchronize local data to MotherDuck cloud database.
         Only available in hybrid mode or when cloud connection is available.
@@ -589,7 +649,7 @@ class Database:
         try:
             logger.info("Starting sync to MotherDuck cloud...")
 
-            results: Dict[str, Union[int, List[str]]] = {
+            results: dict[str, int | list[str]] = {
                 "envelopes_synced": 0,
                 "transactions_synced": 0,
                 "errors": [],
@@ -618,7 +678,7 @@ class Database:
                     for envelope in envelopes:
                         self.conn.execute(
                             """
-                            INSERT OR REPLACE INTO motherduck.main.envelopes 
+                            INSERT OR REPLACE INTO motherduck.main.envelopes
                             (id, category, budgeted_amount, starting_balance, description)
                             VALUES (?, ?, ?, ?, ?)
                         """,
@@ -639,7 +699,7 @@ class Database:
             except Exception as e:
                 error_msg = f"Error syncing envelopes: {e}"
                 logger.error(error_msg)
-                cast(List[str], results["errors"]).append(error_msg)
+                cast(list[str], results["errors"]).append(error_msg)
 
             # Sync transactions
             try:
@@ -663,7 +723,7 @@ class Database:
                     for transaction in transactions:
                         self.conn.execute(
                             """
-                            INSERT OR REPLACE INTO motherduck.main.transactions 
+                            INSERT OR REPLACE INTO motherduck.main.transactions
                             (id, envelope_id, amount, description, date, type)
                             VALUES (?, ?, ?, ?, ?, ?)
                         """,
@@ -687,7 +747,7 @@ class Database:
             except Exception as e:
                 error_msg = f"Error syncing transactions: {e}"
                 logger.error(error_msg)
-                cast(List[str], results["errors"]).append(error_msg)
+                cast(list[str], results["errors"]).append(error_msg)
 
             self.conn.commit()
             logger.info("Successfully completed sync to MotherDuck cloud")
@@ -698,7 +758,7 @@ class Database:
             logger.error(f"Failed to sync to cloud: {e}")
             raise
 
-    def sync_from_cloud(self) -> Dict[str, Any]:
+    def sync_from_cloud(self) -> dict[str, Any]:
         """
         Synchronize data from MotherDuck cloud to local database.
         Only available in hybrid mode or when cloud connection is available.
@@ -720,7 +780,7 @@ class Database:
         try:
             logger.info("Starting sync from MotherDuck cloud...")
 
-            results: Dict[str, Union[int, List[str]]] = {
+            results: dict[str, int | list[str]] = {
                 "envelopes_synced": 0,
                 "transactions_synced": 0,
                 "errors": [],
@@ -730,7 +790,7 @@ class Database:
             try:
                 cloud_envelopes = self.conn.execute(
                     """
-                    SELECT id, category, budgeted_amount, starting_balance, description 
+                    SELECT id, category, budgeted_amount, starting_balance, description
                     FROM motherduck.main.envelopes
                 """
                 ).fetchall()
@@ -739,7 +799,7 @@ class Database:
                     # Insert or replace in local database
                     self.conn.execute(
                         """
-                        INSERT OR REPLACE INTO main.envelopes 
+                        INSERT OR REPLACE INTO main.envelopes
                         (id, category, budgeted_amount, starting_balance, description)
                         VALUES (?, ?, ?, ?, ?)
                     """,
@@ -756,13 +816,13 @@ class Database:
             except Exception as e:
                 error_msg = f"Error syncing envelopes from cloud: {e}"
                 logger.error(error_msg)
-                cast(List[str], results["errors"]).append(error_msg)
+                cast(list[str], results["errors"]).append(error_msg)
 
             # Sync transactions from cloud
             try:
                 cloud_transactions = self.conn.execute(
                     """
-                    SELECT id, envelope_id, amount, description, date, type 
+                    SELECT id, envelope_id, amount, description, date, type
                     FROM motherduck.main.transactions
                 """
                 ).fetchall()
@@ -771,7 +831,7 @@ class Database:
                     # Insert or replace in local database
                     self.conn.execute(
                         """
-                        INSERT OR REPLACE INTO main.transactions 
+                        INSERT OR REPLACE INTO main.transactions
                         (id, envelope_id, amount, description, date, type)
                         VALUES (?, ?, ?, ?, ?, ?)
                     """,
@@ -788,7 +848,7 @@ class Database:
             except Exception as e:
                 error_msg = f"Error syncing transactions from cloud: {e}"
                 logger.error(error_msg)
-                cast(List[str], results["errors"]).append(error_msg)
+                cast(list[str], results["errors"]).append(error_msg)
 
             self.conn.commit()
             logger.info("Successfully completed sync from MotherDuck cloud")
@@ -799,7 +859,7 @@ class Database:
             logger.error(f"Failed to sync from cloud: {e}")
             raise
 
-    def get_sync_status(self) -> Dict[str, Any]:
+    def get_sync_status(self) -> dict[str, Any]:
         """
         Get synchronization status between local and cloud databases.
 

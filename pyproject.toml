@@ -17,8 +17,41 @@ budget-mcp-server = "app.cli:main"
 [tool.uv]
 dev-dependencies = [
     "pytest>=7.0.0",
-    "pytest-asyncio>=0.18.0"
+    "pytest-asyncio>=0.18.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0"
 ]
+
+[tool.black]
+line-length = 88
+target-version = ['py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  \.git
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.venv
+  | data
+  | certs
+)/
+'''
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+exclude = ["data", "certs", ".git", ".mypy_cache", ".pytest_cache", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+exclude = ["data/", "certs/"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]

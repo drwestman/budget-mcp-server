@@ -5,11 +5,22 @@ Run this file to start the FastMCP server with Streamable HTTP transport.
 """
 import os
 import sys
+from typing import Any
+
 import uvicorn
+
 from app.fastmcp_server import create_fastmcp_server
 
 
-def run_https_server(mcp, host, port, path, ssl_cert_file, ssl_key_file, log_level):
+def run_https_server(
+    mcp: Any,
+    host: str,
+    port: int,
+    path: str,
+    ssl_cert_file: str,
+    ssl_key_file: str,
+    log_level: str,
+) -> None:
     """
     Run the FastMCP server with HTTPS using Uvicorn with SSL context.
 
@@ -43,7 +54,7 @@ def run_https_server(mcp, host, port, path, ssl_cert_file, ssl_key_file, log_lev
     )
 
 
-def main():
+def main() -> None:
     """Main function to run the FastMCP server."""
     # Get configuration environment from environment variable
     config_name = os.getenv("APP_ENV", "development")
@@ -74,7 +85,7 @@ def main():
         print("Set BEARER_TOKEN environment variable to enable authentication.")
 
     # Clean up database file on start for development
-    if app_config.RESET_DB_ON_START:
+    if hasattr(app_config, "RESET_DB_ON_START") and app_config.RESET_DB_ON_START:
         db_file = app_config.DATABASE_FILE
         if db_file != ":memory:" and os.path.exists(db_file):
             os.remove(db_file)
@@ -85,13 +96,14 @@ def main():
     mcp = create_fastmcp_server(config_name, enable_auth=enable_auth)
 
     # Initialize database tables after potential cleanup
-    mcp.db._connect()
-    mcp.db._create_tables()
+    if hasattr(mcp, "db"):
+        mcp.db._connect()
+        mcp.db._create_tables()
 
     # Print configuration info
     print(f"Environment: {config_name}")
     print(f"Database File: {app_config.DATABASE_FILE}")
-    print(f"Debug Mode: {app_config.DEBUG}")
+    print(f"Debug Mode: {getattr(app_config, 'DEBUG', False)}")
     print(f"Bearer Token Authentication: {'Enabled' if enable_auth else 'Disabled'}")
     print("Starting Budget Envelope FastMCP Server with Streamable HTTP transport...")
 
@@ -131,7 +143,7 @@ def main():
         "host": host,
         "port": port,
         "path": path,
-        "log_level": "info" if app_config.DEBUG else "warning",
+        "log_level": "info" if getattr(app_config, "DEBUG", False) else "warning",
     }
 
     # Note: SSL configuration handled separately for HTTPS mode
@@ -146,11 +158,11 @@ def main():
             path=path,
             ssl_cert_file=ssl_cert_file,
             ssl_key_file=ssl_key_file,
-            log_level=run_args["log_level"],
+            log_level=str(run_args["log_level"]),
         )
     else:
-        # Standard HTTP mode
-        mcp.run(**run_args)
+        # Standard HTTP mode - use only valid arguments
+        mcp.run(transport="streamable-http", host=host, port=port, path=path)
 
 
 if __name__ == "__main__":

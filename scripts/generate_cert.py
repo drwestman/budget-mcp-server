@@ -10,7 +10,9 @@ import sys
 from pathlib import Path
 
 
-def generate_self_signed_cert(cert_dir="certs", days=365, hostname=None):
+def generate_self_signed_cert(
+    cert_dir: str = "certs", days: int = 365, hostname: str | None = None
+) -> None:
     """
     Generate self-signed SSL certificate and private key.
 
@@ -128,7 +130,7 @@ subjectAltName = @alt_names
             config_file.unlink()
 
 
-def main():
+def main() -> None:
     """Main function to generate SSL certificates."""
     import argparse
 

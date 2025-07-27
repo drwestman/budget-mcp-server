@@ -1,11 +1,14 @@
 """
 Unit tests for FastMCP server with bearer token authentication.
 """
-import pytest
+
 import asyncio
 import json
 import os
+from collections.abc import Generator
 from unittest.mock import patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app.fastmcp_server import create_fastmcp_server
@@ -15,13 +18,13 @@ class TestFastMCPServerAuth:
     """Test suite for FastMCP server authentication functionality."""
 
     @pytest.fixture
-    def event_loop(self):
+    def event_loop(self) -> Generator[asyncio.AbstractEventLoop, None, None]:
         """Create an event loop for async tests."""
         loop = asyncio.new_event_loop()
         yield loop
         loop.close()
 
-    def test_create_server_without_auth(self):
+    def test_create_server_without_auth(self) -> None:
         """Test creating FastMCP server with authentication disabled."""
         server = create_fastmcp_server("testing", enable_auth=False)
 
@@ -31,7 +34,7 @@ class TestFastMCPServerAuth:
         assert hasattr(server, "db")
 
     @patch.dict(os.environ, {"BEARER_TOKEN": "test-token-123"})
-    def test_create_server_with_auth_enabled(self):
+    def test_create_server_with_auth_enabled(self) -> None:
         """Test creating FastMCP server with authentication enabled."""
         server = create_fastmcp_server("testing", enable_auth=True)
 
@@ -54,7 +57,7 @@ class TestFastMCPServerAuth:
         assert "Missing Authorization header" in response.json()["error"]
 
     @patch.dict(os.environ, {"BEARER_TOKEN": "test-token-123"})
-    def test_server_http_app_with_auth_middleware(self):
+    def test_server_http_app_with_auth_middleware(self) -> None:
         """Test that HTTP app properly applies authentication middleware."""
         server = create_fastmcp_server("testing", enable_auth=True)
         http_app = server.http_app()
@@ -76,7 +79,7 @@ class TestFastMCPServerAuth:
         assert response.status_code != 401
 
     @patch.dict(os.environ, {"BEARER_TOKEN": "test-token-123"})
-    def test_server_http_app_instance_consistency(self):
+    def test_server_http_app_instance_consistency(self) -> None:
         """Test that HTTP app instance is consistent across calls."""
         server = create_fastmcp_server("testing", enable_auth=True)
 
@@ -87,7 +90,7 @@ class TestFastMCPServerAuth:
         # Should be the same instance (our wrapper ensures this)
         assert http_app1 is http_app2
 
-    def test_create_server_without_bearer_token_no_auth(self):
+    def test_create_server_without_bearer_token_no_auth(self) -> None:
         """Test creating server without bearer token when auth is disabled."""
         with patch.dict(os.environ, {}, clear=True):
             # Remove BEARER_TOKEN from environment
@@ -106,7 +109,7 @@ class TestFastMCPServerAuth:
             # May fail at FastMCP level but should not be 401 (auth not required)
             assert response.status_code != 401
 
-    def test_create_server_without_bearer_token_with_auth_enabled(self):
+    def test_create_server_without_bearer_token_with_auth_enabled(self) -> None:
         """Test creating server without bearer token when auth is enabled."""
         with patch.dict(os.environ, {}, clear=True):
             # Remove BEARER_TOKEN from environment
@@ -130,39 +133,38 @@ class TestFastMCPServerAuthIntegration:
     """Integration tests for FastMCP server tools with authentication."""
 
     @pytest.fixture
-    def event_loop(self):
+    def event_loop(self) -> Generator[asyncio.AbstractEventLoop, None, None]:
         """Create an event loop for async tests."""
         loop = asyncio.new_event_loop()
         yield loop
         loop.close()
 
     @patch.dict(os.environ, {"BEARER_TOKEN": "integration-test-token"})
-    def test_mcp_tools_with_auth(self):
+    def test_mcp_tools_with_auth(self) -> None:
         """Test that MCP tools work correctly when authentication is enabled."""
         server = create_fastmcp_server("testing", enable_auth=True)
         http_app = server.http_app()
-        client = TestClient(http_app)
+        with TestClient(http_app) as client:
+            # Test MCP endpoint with authentication
+            mcp_request = {"jsonrpc": "2.0", "method": "list_envelopes", "id": 1}
 
-        # Test MCP endpoint with authentication
-        mcp_request = {"jsonrpc": "2.0", "method": "list_envelopes", "id": 1}
+            # Test without authentication - should fail
+            response = client.post("/mcp/", json=mcp_request)
+            assert response.status_code == 401
 
-        # Test without authentication - should fail
-        response = client.post("/mcp/", json=mcp_request)
-        assert response.status_code == 401
+            # Test with valid authentication
+            headers = {
+                "Authorization": "Bearer integration-test-token",
+                "Accept": "application/json, text/event-stream",
+            }
+            response = client.post("/mcp/", json=mcp_request, headers=headers)
 
-        # Test with valid authentication
-        headers = {
-            "Authorization": "Bearer integration-test-token",
-            "Accept": "application/json, text/event-stream",
-        }
-        response = client.post("/mcp/", json=mcp_request, headers=headers)
-
-        # Should pass authentication (may fail at MCP protocol level, but not auth)
-        assert response.status_code != 401
+            # Should pass authentication (may fail at MCP protocol level, but not auth)
+            assert response.status_code != 401
 
     @patch.dict(os.environ, {"BEARER_TOKEN": "test-token"})
     @pytest.mark.asyncio
-    async def test_tools_execution_with_auth(self):
+    async def test_tools_execution_with_auth(self) -> None:
         """Test that individual tools execute correctly with authentication enabled."""
         server = create_fastmcp_server("testing", enable_auth=True)
 
@@ -183,7 +185,7 @@ class TestFastMCPServerAuthIntegration:
 class TestAuthConfigurationValidation:
     """Test configuration validation for authentication."""
 
-    def test_config_bearer_token_present(self):
+    def test_config_bearer_token_present(self) -> None:
         """Test configuration when bearer token is present."""
         with patch.dict(os.environ, {"BEARER_TOKEN": "test-token-value"}):
             from app.config import Config
@@ -191,7 +193,7 @@ class TestAuthConfigurationValidation:
             config = Config()
             assert config.BEARER_TOKEN == "test-token-value"
 
-    def test_config_bearer_token_absent(self):
+    def test_config_bearer_token_absent(self) -> None:
         """Test configuration when bearer token is absent."""
         with patch.dict(os.environ, {}, clear=True):
             if "BEARER_TOKEN" in os.environ:
@@ -202,7 +204,7 @@ class TestAuthConfigurationValidation:
             config = Config()
             assert config.BEARER_TOKEN is None
 
-    def test_config_bearer_token_empty_string(self):
+    def test_config_bearer_token_empty_string(self) -> None:
         """Test configuration when bearer token is empty string."""
         with patch.dict(os.environ, {"BEARER_TOKEN": ""}):
             from app.config import Config
