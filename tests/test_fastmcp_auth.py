@@ -144,24 +144,23 @@ class TestFastMCPServerAuthIntegration:
         """Test that MCP tools work correctly when authentication is enabled."""
         server = create_fastmcp_server("testing", enable_auth=True)
         http_app = server.http_app()
-        client = TestClient(http_app)
+        with TestClient(http_app) as client:
+            # Test MCP endpoint with authentication
+            mcp_request = {"jsonrpc": "2.0", "method": "list_envelopes", "id": 1}
 
-        # Test MCP endpoint with authentication
-        mcp_request = {"jsonrpc": "2.0", "method": "list_envelopes", "id": 1}
+            # Test without authentication - should fail
+            response = client.post("/mcp/", json=mcp_request)
+            assert response.status_code == 401
 
-        # Test without authentication - should fail
-        response = client.post("/mcp/", json=mcp_request)
-        assert response.status_code == 401
+            # Test with valid authentication
+            headers = {
+                "Authorization": "Bearer integration-test-token",
+                "Accept": "application/json, text/event-stream",
+            }
+            response = client.post("/mcp/", json=mcp_request, headers=headers)
 
-        # Test with valid authentication
-        headers = {
-            "Authorization": "Bearer integration-test-token",
-            "Accept": "application/json, text/event-stream",
-        }
-        response = client.post("/mcp/", json=mcp_request, headers=headers)
-
-        # Should pass authentication (may fail at MCP protocol level, but not auth)
-        assert response.status_code != 401
+            # Should pass authentication (may fail at MCP protocol level, but not auth)
+            assert response.status_code != 401
 
     @patch.dict(os.environ, {"BEARER_TOKEN": "test-token"})
     @pytest.mark.asyncio

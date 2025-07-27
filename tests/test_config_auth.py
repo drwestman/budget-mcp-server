@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from app.config import Config, DevelopmentConfig, ProductionConfig, TestingConfig
+from app.config import Config, DevelopmentConfig, ProductionConfig, ConfigTesting
 
 
 class TestAuthConfiguration:
@@ -50,9 +50,9 @@ class TestAuthConfiguration:
             assert config.RESET_DB_ON_START is False
 
     def test_testing_config_inherits_bearer_token(self) -> None:
-        """Test TestingConfig inherits BEARER_TOKEN from base Config."""
+        """Test ConfigTesting inherits BEARER_TOKEN from base Config."""
         with patch.dict(os.environ, {"BEARER_TOKEN": "test-token"}):
-            config = TestingConfig()
+            config = ConfigTesting()
             assert config.BEARER_TOKEN == "test-token"
             assert config.DEBUG is True
             assert config.TESTING is True
@@ -69,7 +69,7 @@ class TestAuthConfiguration:
 
         assert config["development"] == DevelopmentConfig
         assert config["production"] == ProductionConfig
-        assert config["testing"] == TestingConfig
+        assert config["testing"] == ConfigTesting
         assert config["default"] == DevelopmentConfig
 
 

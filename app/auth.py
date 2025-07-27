@@ -89,6 +89,7 @@ class BearerTokenMiddleware(BaseHTTPMiddleware):
             return error_response
 
         # Extract token from header
+        assert auth_header is not None
         token_or_error = self._extract_token(auth_header)
         if isinstance(token_or_error, JSONResponse):
             return token_or_error

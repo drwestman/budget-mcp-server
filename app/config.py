@@ -132,7 +132,7 @@ class ProductionConfig(Config):
         self.RESET_DB_ON_START = False
 
 
-class TestingConfig(Config):
+class ConfigTesting(Config):
     """Testing configuration."""
 
     def __init__(self) -> None:
@@ -141,12 +141,13 @@ class TestingConfig(Config):
         self.TESTING = True
         self.DATABASE_FILE = ":memory:"
         self.RESET_DB_ON_START = True
+        self.DATABASE_MODE = "local"
 
 
 # Configuration mapping
 config = {
     "development": DevelopmentConfig,
     "production": ProductionConfig,
-    "testing": TestingConfig,
+    "testing": ConfigTesting,
     "default": DevelopmentConfig,
 }
