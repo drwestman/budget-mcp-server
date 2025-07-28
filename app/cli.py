@@ -47,15 +47,6 @@ def main() -> int:
             # Create MCP server using standard MCP SDK
             server = create_mcp_server(config_name)
 
-            # Clean up database if needed (after server creation)
-            if (
-                hasattr(app_config, "RESET_DB_ON_START")
-                and app_config.RESET_DB_ON_START
-            ):
-                # Recreate database with fresh tables
-                server.db._connect()
-                server.db._create_tables()
-
             # Run the MCP server with stdio transport
             async with stdio_server() as (read_stream, write_stream):
                 await server.run(

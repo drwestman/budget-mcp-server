@@ -388,7 +388,7 @@ class TestMCPInitializationMiddleware:
             },
         )
 
-        response = await middleware.dispatch(init_request, call_next)
+        await middleware.dispatch(init_request, call_next)
         assert call_next.called
         call_next.reset_mock()
 
@@ -398,7 +398,7 @@ class TestMCPInitializationMiddleware:
             {"jsonrpc": "2.0", "method": "notifications/initialized"},
         )
 
-        response = await middleware.dispatch(initialized_request, call_next)
+        await middleware.dispatch(initialized_request, call_next)
         assert call_next.called
         call_next.reset_mock()
 
@@ -413,5 +413,5 @@ class TestMCPInitializationMiddleware:
             },
         )
 
-        response = await middleware.dispatch(tool_request, call_next)
+        await middleware.dispatch(tool_request, call_next)
         assert call_next.called

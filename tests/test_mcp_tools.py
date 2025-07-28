@@ -194,11 +194,10 @@ class TestMCPTools:
         schema = list_transactions_tool.parameters
         assert schema["type"] == "object"
         assert "envelope_id" in schema["properties"]
-        # Optional parameters use anyOf with integer and null
+        # FastMCP generates nullable integers with type + default pattern
         envelope_id_schema = schema["properties"]["envelope_id"]
-        assert "anyOf" in envelope_id_schema
-        assert {"type": "integer"} in envelope_id_schema["anyOf"]
-        assert {"type": "null"} in envelope_id_schema["anyOf"]
+        assert envelope_id_schema["type"] == "integer"
+        assert envelope_id_schema["default"] is None
         assert "envelope_id" not in schema.get("required", [])
 
         # Test schema for get_envelope

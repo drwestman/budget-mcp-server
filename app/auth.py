@@ -315,6 +315,9 @@ class MCPInitializationMiddleware(BaseHTTPMiddleware):
                     }
 
                 # Replace the request's receive callable
+                # WARNING: This relies on internal Starlette Request object
+                # attribute (_receive) which is undocumented and may break in
+                # future FastAPI/Starlette versions. Monitor for breaking changes.
                 request._receive = receive
                 response = await call_next(request)
                 return response

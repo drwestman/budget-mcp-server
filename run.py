@@ -72,7 +72,8 @@ def main() -> None:
     # Validate bearer token is configured for HTTP transport (only in production)
     if config_name == "production" and not app_config.BEARER_TOKEN:
         print(
-            "Error: BEARER_TOKEN environment variable is required for production HTTP transport security."
+            "Error: BEARER_TOKEN environment variable is required for "
+            "production HTTP transport security."
         )
         print("Please set BEARER_TOKEN in your environment or .env file.")
         sys.exit(1)
@@ -80,7 +81,8 @@ def main() -> None:
     # Warn about missing bearer token in development
     if config_name != "production" and not app_config.BEARER_TOKEN:
         print(
-            "Warning: BEARER_TOKEN not set. Authentication middleware will be disabled in development."
+            "Warning: BEARER_TOKEN not set. Authentication middleware will be "
+            "disabled in development."
         )
         print("Set BEARER_TOKEN environment variable to enable authentication.")
 
@@ -91,7 +93,8 @@ def main() -> None:
             os.remove(db_file)
             print(f"Removed existing database file: {db_file}")
 
-    # Create FastMCP server using the factory pattern with authentication enabled only if token is set
+    # Create FastMCP server using the factory pattern with authentication
+    # enabled only if token is set
     enable_auth = bool(app_config.BEARER_TOKEN)
     mcp = create_fastmcp_server(config_name, enable_auth=enable_auth)
 
@@ -124,7 +127,8 @@ def main() -> None:
             print(f"Expected cert file: {ssl_cert_file}")
             print(f"Expected key file: {ssl_key_file}")
             print(
-                "Run 'python scripts/generate_cert.py' to generate self-signed certificates"
+                "Run 'python scripts/generate_cert.py' to generate "
+                "self-signed certificates"
             )
             sys.exit(1)
         protocol = "https"
@@ -150,7 +154,8 @@ def main() -> None:
 
     # Run the FastMCP server with streamable HTTP transport
     if https_enabled:
-        # Use custom HTTPS implementation (currently falls back to HTTP due to FastMCP limitations)
+        # Use custom HTTPS implementation (currently falls back to HTTP
+        # due to FastMCP limitations)
         run_https_server(
             mcp=mcp,
             host=host,

@@ -21,23 +21,20 @@ async def main() -> None:
 
     Config.ensure_data_directory()
 
-    # Create MCP server using the factory pattern
-    server = create_mcp_server(config_name)
-
     # Get configuration for database cleanup
     from app.config import config
 
     app_config = config[config_name]()
 
-    # Clean up database file on start for development
+    # Clean up database file on start for development (before server creation)
     if app_config.RESET_DB_ON_START:
         db_file = app_config.DATABASE_FILE
         if db_file != ":memory:" and os.path.exists(db_file):
             os.remove(db_file)
             print(f"Removed existing database file: {db_file}")
-            # Recreate database with fresh tables
-            server.db._connect()
-            server.db._create_tables()
+
+    # Create MCP server using the factory pattern
+    server = create_mcp_server(config_name)
 
     # Print configuration info
     print(f"Environment: {config_name}")

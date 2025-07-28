@@ -5,7 +5,7 @@ FastMCP server implementation for Budget Cash Envelope MCP Server.
 import json
 import logging
 import os
-from typing import Annotated, Any
+from typing import Any
 
 from fastmcp import FastMCP
 
@@ -13,6 +13,10 @@ from app.config import config
 from app.models.database import Database
 from app.services.envelope_service import EnvelopeService
 from app.services.transaction_service import TransactionService
+from app.tools.registry import (
+    ToolRegistry,
+    create_tool_registry,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,423 +55,232 @@ def _create_initialization_checked_http_app(original_http_app: Any) -> Any:
     return http_app_with_init_check
 
 
-def _create_authenticated_and_init_checked_http_app(
-    original_http_app: Any, bearer_token: str
-) -> Any:
-    """Create HTTP app with both authentication and initialization check middleware."""
-    _http_app_instance = None
+def _register_fastmcp_tools(mcp: FastMCP, registry: ToolRegistry) -> None:
+    """Register tools with FastMCP using individual functions (no **kwargs)."""
 
-    def http_app_with_auth_and_init(*args: Any, **kwargs: Any) -> Any:
-        nonlocal _http_app_instance
-        if _http_app_instance is None:
-            from app.auth import (
-                BearerTokenMiddleware,
-                create_mcp_initialization_middleware,
-            )
-
-            _http_app_instance = original_http_app(*args, **kwargs)
-            # Add initialization check first (inner middleware)
-            _http_app_instance.add_middleware(create_mcp_initialization_middleware())
-            # Add authentication second (outer middleware)
-            _http_app_instance.add_middleware(
-                BearerTokenMiddleware, bearer_token=bearer_token
-            )
-        return _http_app_instance
-
-    return http_app_with_auth_and_init
-
-
-def _configure_middleware(
-    mcp: FastMCP, app_config: Any, enable_auth: bool, enable_init_check: bool
-) -> None:
-    """
-    Configure middleware stack (authentication and initialization check) using composition.
-    """
-    if enable_auth and app_config.BEARER_TOKEN and enable_init_check:
-        # Both authentication and initialization check
-        setattr(
-            mcp,
-            "http_app",
-            _create_authenticated_and_init_checked_http_app(
-                mcp.http_app, app_config.BEARER_TOKEN
-            ),
-        )
-    elif enable_auth and app_config.BEARER_TOKEN:
-        # Only authentication (legacy behavior)
-        setattr(
-            mcp,
-            "http_app",
-            _create_authenticated_http_app(mcp.http_app, app_config.BEARER_TOKEN),
-        )
-    elif enable_init_check:
-        # Only initialization check
-        setattr(
-            mcp,
-            "http_app",
-            _create_initialization_checked_http_app(mcp.http_app),
-        )
-
-
-def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService) -> None:
-    """Register all envelope management tools."""
-
-    @mcp.tool
+    # Envelope tools
+    @mcp.tool()
     async def create_envelope(
-        category: Annotated[str, "Name/category of the envelope (must be unique)"],
-        budgeted_amount: Annotated[
-            float, "Planned budget amount for this envelope (must be positive)"
-        ],
-        starting_balance: Annotated[
-            float | None, "Initial balance for the envelope. Defaults to 0.0"
-        ] = 0.0,
-        description: Annotated[
-            str | None,
-            "Optional description providing additional context about the "
-            "envelope's purpose. Defaults to empty string",
-        ] = "",
+        category: str,
+        budgeted_amount: float,
+        starting_balance: float = 0.0,
+        description: str = "",
     ) -> str:
-        """Create a new budget envelope.
+        """Create a new budget envelope."""
+        result = await registry.call_tool(
+            "create_envelope",
+            {
+                "category": category,
+                "budgeted_amount": budgeted_amount,
+                "starting_balance": starting_balance,
+                "description": description,
+            },
+        )
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
 
-        Creates a new budget envelope with the specified parameters.
-        """
-        try:
-            # Set defaults for None values
-            if starting_balance is None:
-                starting_balance = 0.0
-            if description is None:
-                description = ""
-            envelope = envelope_service.create_envelope(
-                category, budgeted_amount, starting_balance, description
-            )
-            return json.dumps(envelope, indent=2)
-        except ValueError as e:
-            return f"Error: {str(e)}"
-        except (TypeError, KeyError, AttributeError) as e:
-            return f"Internal error: Data processing error: {str(e)}"
-        except Exception:
-            # Log unexpected errors for debugging while providing safe user message
-            logger.exception("An unexpected error occurred in create_envelope")
-            return (
-                "Internal error: An unexpected error occurred. "
-                "Please contact support if the issue persists."
-            )
-
-    @mcp.tool
+    @mcp.tool()
     async def list_envelopes() -> str:
-        """Get all budget envelopes with their current balances.
+        """Get all budget envelopes with their current balances."""
+        result = await registry.call_tool("list_envelopes", {})
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
 
-        Returns:
-            List of all envelopes with current balance calculations.
-        """
-        try:
-            envelopes = envelope_service.get_all_envelopes()
-            return json.dumps(envelopes, indent=2)
-        except (TypeError, KeyError, AttributeError) as e:
-            return f"Internal error: Data processing error: {str(e)}"
-        except Exception as e:
-            return f"Internal error: An unexpected error occurred: {str(e)}"
+    @mcp.tool()
+    async def get_envelope(envelope_id: int) -> str:
+        """Get specific envelope details by ID."""
+        result = await registry.call_tool("get_envelope", {"envelope_id": envelope_id})
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
 
-    @mcp.tool
-    async def get_envelope(
-        envelope_id: Annotated[int, "ID of the envelope to retrieve"],
-    ) -> str:
-        """Get specific envelope details by ID.
-
-        Returns:
-            Envelope details with current balance.
-        """
-        try:
-            envelope = envelope_service.get_envelope(envelope_id)
-            if not envelope:
-                return "Error: Envelope not found"
-            return json.dumps(envelope, indent=2)
-        except (TypeError, KeyError, AttributeError) as e:
-            return f"Internal error: Data processing error: {str(e)}"
-        except Exception as e:
-            return f"Internal error: An unexpected error occurred: {str(e)}"
-
-    @mcp.tool
+    @mcp.tool()
     async def update_envelope(
-        envelope_id: Annotated[int, "ID of the envelope to update"],
-        category: Annotated[str | None, "New category name (optional)"] = None,
-        budgeted_amount: Annotated[
-            float | None, "New budgeted amount (optional)"
-        ] = None,
-        starting_balance: Annotated[
-            float | None, "New starting balance (optional)"
-        ] = None,
-        description: Annotated[str | None, "New description (optional)"] = None,
+        envelope_id: int,
+        category: str = None,
+        budgeted_amount: float = None,
+        starting_balance: float = None,
+        description: str = None,
     ) -> str:
-        """Update an existing envelope's properties.
+        """Update an existing envelope's properties."""
+        args = {"envelope_id": envelope_id}
+        if category is not None:
+            args["category"] = category
+        if budgeted_amount is not None:
+            args["budgeted_amount"] = budgeted_amount
+        if starting_balance is not None:
+            args["starting_balance"] = starting_balance
+        if description is not None:
+            args["description"] = description
+        result = await registry.call_tool("update_envelope", args)
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
 
-        Returns:
-            Updated envelope details.
-        """
-        try:
-            envelope = envelope_service.update_envelope(
-                envelope_id, category, budgeted_amount, starting_balance, description
-            )
-            return json.dumps(envelope, indent=2)
-        except ValueError as e:
-            return f"Error: {str(e)}"
-        except (TypeError, KeyError, AttributeError) as e:
-            return f"Internal error: Data processing error: {str(e)}"
-        except Exception as e:
-            return f"Internal error: An unexpected error occurred: {str(e)}"
+    @mcp.tool()
+    async def delete_envelope(envelope_id: int) -> str:
+        """Delete an envelope by ID."""
+        result = await registry.call_tool(
+            "delete_envelope", {"envelope_id": envelope_id}
+        )
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
 
-    @mcp.tool
-    async def delete_envelope(
-        envelope_id: Annotated[int, "ID of the envelope to delete"],
-    ) -> str:
-        """Delete an envelope by ID.
-
-        Returns:
-            Confirmation message.
-        """
-        try:
-            result = envelope_service.delete_envelope(envelope_id)
-            return json.dumps(result, indent=2)
-        except ValueError as e:
-            return f"Error: {str(e)}"
-        except (TypeError, KeyError, AttributeError) as e:
-            return f"Internal error: Data processing error: {str(e)}"
-        except Exception as e:
-            return f"Internal error: An unexpected error occurred: {str(e)}"
-
-
-def _register_transaction_tools(
-    mcp: FastMCP, transaction_service: TransactionService
-) -> None:
-    """Register all transaction management tools."""
-
-    @mcp.tool
+    # Transaction tools
+    @mcp.tool()
     async def create_transaction(
-        envelope_id: Annotated[int, "ID of the envelope this transaction belongs to"],
-        amount: Annotated[
-            float, "Transaction amount (positive for income, negative for expense)"
-        ],
-        description: Annotated[str, "Description of the transaction"],
-        type: Annotated[str, "Type of transaction: 'income' or 'expense'"],
-        date: Annotated[
-            str | None,
-            "Transaction date in YYYY-MM-DD format. Defaults to current date",
-        ] = None,
+        envelope_id: int,
+        amount: float,
+        description: str,
+        type: str,
+        date: str = None,
     ) -> str:
-        """Create a new transaction.
+        """Create a new transaction."""
+        args = {
+            "envelope_id": envelope_id,
+            "amount": amount,
+            "description": description,
+            "type": type,
+        }
+        if date is not None:
+            args["date"] = date
+        result = await registry.call_tool("create_transaction", args)
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
 
-        Creates a new income or expense transaction for the specified envelope.
-        """
-        try:
-            # Use current date if not provided
-            if date is None:
-                from datetime import datetime
+    @mcp.tool()
+    async def list_transactions(envelope_id: int = None) -> str:
+        """Get transactions, optionally filtered by envelope."""
+        args = {}
+        if envelope_id is not None:
+            args["envelope_id"] = envelope_id
+        result = await registry.call_tool("list_transactions", args)
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
 
-                date = datetime.now().strftime("%Y-%m-%d")
-            transaction = transaction_service.create_transaction(
-                envelope_id, amount, description, date, type
-            )
-            return json.dumps(transaction, indent=2)
-        except ValueError as e:
-            return f"Error: {str(e)}"
-        except (TypeError, KeyError, AttributeError) as e:
-            return f"Internal error: Data processing error: {str(e)}"
-        except Exception:
-            # Log unexpected errors for debugging while providing safe user message
-            logger.exception("An unexpected error occurred in create_transaction")
-            return (
-                "Internal error: An unexpected error occurred. "
-                "Please contact support if the issue persists."
-            )
+    @mcp.tool()
+    async def get_transaction(transaction_id: int) -> str:
+        """Get specific transaction details by ID."""
+        result = await registry.call_tool(
+            "get_transaction", {"transaction_id": transaction_id}
+        )
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
 
-    @mcp.tool
-    async def list_transactions(
-        envelope_id: Annotated[
-            int | None, "Filter transactions by envelope ID (optional)"
-        ] = None,
-    ) -> str:
-        """Get transactions, optionally filtered by envelope.
-
-        Returns:
-            List of transactions.
-        """
-        try:
-            transactions = (
-                transaction_service.get_transactions_by_envelope(envelope_id)
-                if envelope_id
-                else transaction_service.get_all_transactions()
-            )
-            return json.dumps(transactions, indent=2)
-        except (TypeError, KeyError, AttributeError) as e:
-            return f"Internal error: Data processing error: {str(e)}"
-        except Exception as e:
-            return f"Internal error: An unexpected error occurred: {str(e)}"
-
-    @mcp.tool
-    async def get_transaction(
-        transaction_id: Annotated[int, "ID of the transaction to retrieve"],
-    ) -> str:
-        """Get specific transaction details by ID.
-
-        Returns:
-            Transaction details.
-        """
-        try:
-            transaction = transaction_service.get_transaction(transaction_id)
-            if not transaction:
-                return "Error: Transaction not found"
-            return json.dumps(transaction, indent=2)
-        except (TypeError, KeyError, AttributeError) as e:
-            return f"Internal error: Data processing error: {str(e)}"
-        except Exception as e:
-            return f"Internal error: An unexpected error occurred: {str(e)}"
-
-    @mcp.tool
+    @mcp.tool()
     async def update_transaction(
-        transaction_id: Annotated[int, "ID of the transaction to update"],
-        envelope_id: Annotated[int | None, "New envelope ID (optional)"] = None,
-        amount: Annotated[float | None, "New amount (optional)"] = None,
-        description: Annotated[str | None, "New description (optional)"] = None,
-        type: Annotated[
-            str | None, "New type: 'income' or 'expense' (optional)"
-        ] = None,
-        date: Annotated[str | None, "New date in YYYY-MM-DD format (optional)"] = None,
+        transaction_id: int,
+        envelope_id: int = None,
+        amount: float = None,
+        description: str = None,
+        type: str = None,
+        date: str = None,
     ) -> str:
-        """Update an existing transaction's properties.
+        """Update an existing transaction's properties."""
+        args = {"transaction_id": transaction_id}
+        if envelope_id is not None:
+            args["envelope_id"] = envelope_id
+        if amount is not None:
+            args["amount"] = amount
+        if description is not None:
+            args["description"] = description
+        if type is not None:
+            args["type"] = type
+        if date is not None:
+            args["date"] = date
+        result = await registry.call_tool("update_transaction", args)
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
 
-        Returns:
-            Updated transaction details.
-        """
-        try:
-            transaction = transaction_service.update_transaction(
-                transaction_id, envelope_id, amount, description, date, type
-            )
-            return json.dumps(transaction, indent=2)
-        except ValueError as e:
-            return f"Error: {str(e)}"
-        except (TypeError, KeyError, AttributeError) as e:
-            return f"Internal error: Data processing error: {str(e)}"
-        except Exception as e:
-            return f"Internal error: An unexpected error occurred: {str(e)}"
+    @mcp.tool()
+    async def delete_transaction(transaction_id: int) -> str:
+        """Delete a transaction by ID."""
+        result = await registry.call_tool(
+            "delete_transaction", {"transaction_id": transaction_id}
+        )
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
 
-    @mcp.tool
-    async def delete_transaction(
-        transaction_id: Annotated[int, "ID of the transaction to delete"],
-    ) -> str:
-        """Delete a transaction by ID.
+    # Utility tools
+    @mcp.tool()
+    async def get_envelope_balance(envelope_id: int) -> str:
+        """Get current balance for specific envelope."""
+        result = await registry.call_tool(
+            "get_envelope_balance", {"envelope_id": envelope_id}
+        )
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
 
-        Returns:
-            Confirmation message.
-        """
-        try:
-            result = transaction_service.delete_transaction(transaction_id)
-            return json.dumps(result, indent=2)
-        except ValueError as e:
-            return f"Error: {str(e)}"
-        except (TypeError, KeyError, AttributeError) as e:
-            return f"Internal error: Data processing error: {str(e)}"
-        except Exception as e:
-            return f"Internal error: An unexpected error occurred: {str(e)}"
-
-
-def _register_utility_tools(mcp: FastMCP, envelope_service: EnvelopeService) -> None:
-    """Register all utility tools."""
-
-    @mcp.tool
-    async def get_envelope_balance(
-        envelope_id: Annotated[int, "ID of the envelope"],
-    ) -> str:
-        """Get current balance for specific envelope.
-
-        Returns:
-            Current balance information for the envelope.
-        """
-        try:
-            balance = envelope_service.get_envelope_balance(envelope_id)
-            return json.dumps(balance, indent=2)
-        except ValueError as e:
-            return f"Error: {str(e)}"
-        except (TypeError, KeyError, AttributeError) as e:
-            return f"Internal error: Data processing error: {str(e)}"
-        except Exception as e:
-            return f"Internal error: An unexpected error occurred: {str(e)}"
-
-    @mcp.tool
+    @mcp.tool()
     async def get_budget_summary() -> str:
-        """Get overall budget status and summary.
+        """Get overall budget status and summary."""
+        result = await registry.call_tool("get_budget_summary", {})
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
 
-        Returns:
-            Summary of all envelopes and overall budget status.
-        """
-        try:
-            # Get all envelopes with balances
-            envelopes = envelope_service.get_all_envelopes()
-
-            # Calculate totals
-            total_budget = sum(env.get("budgeted_amount", 0) for env in envelopes)
-            total_balance = sum(env.get("current_balance", 0) for env in envelopes)
-            total_starting_balance = sum(
-                env.get("starting_balance", 0) for env in envelopes
-            )
-            total_spent = total_starting_balance - total_balance
-
-            summary = {
-                "total_envelopes": len(envelopes),
-                "total_budgeted": total_budget,
-                "total_current_balance": total_balance,
-                "total_spent": total_spent,
-                "envelopes": envelopes,
-            }
-            return json.dumps(summary, indent=2)
-        except (TypeError, KeyError, AttributeError) as e:
-            return f"Internal error: Data processing error: {str(e)}"
-        except Exception as e:
-            return f"Internal error: An unexpected error occurred: {str(e)}"
-
-    @mcp.tool
+    @mcp.tool()
     async def get_cloud_status() -> str:
-        """Get MotherDuck cloud connection status and sync information.
+        """Get MotherDuck cloud connection status and sync information."""
+        result = await registry.call_tool("get_cloud_status", {})
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
 
-        Returns:
-            Cloud connection status and sync information.
-        """
-        try:
-            status = envelope_service.db.get_connection_status()
-            sync_status = envelope_service.db.get_sync_status()
-
-            result = {"connection": status, "sync": sync_status}
-            return json.dumps(result, indent=2)
-        except Exception as e:
-            return f"Internal error: An unexpected error occurred: {str(e)}"
-
-    @mcp.tool
+    @mcp.tool()
     async def sync_to_cloud() -> str:
-        """Synchronize local data to MotherDuck cloud database.
+        """Synchronize local data to MotherDuck cloud database."""
+        result = await registry.call_tool("sync_to_cloud", {})
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
 
-        Returns:
-            Results of the sync operation.
-        """
-        try:
-            results = envelope_service.db.sync_to_cloud()
-            return json.dumps(results, indent=2)
-        except ValueError as e:
-            return f"Error: {str(e)}"
-        except Exception as e:
-            return f"Internal error: An unexpected error occurred: {str(e)}"
-
-    @mcp.tool
+    @mcp.tool()
     async def sync_from_cloud() -> str:
-        """Synchronize data from MotherDuck cloud to local database.
-
-        Returns:
-            Results of the sync operation.
-        """
-        try:
-            results = envelope_service.db.sync_from_cloud()
-            return json.dumps(results, indent=2)
-        except ValueError as e:
-            return f"Error: {str(e)}"
-        except Exception as e:
-            return f"Internal error: An unexpected error occurred: {str(e)}"
+        """Synchronize data from MotherDuck cloud to local database."""
+        result = await registry.call_tool("sync_from_cloud", {})
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
 
 
 def create_fastmcp_server(
@@ -517,20 +330,28 @@ def create_fastmcp_server(
     envelope_service = EnvelopeService(db)
     transaction_service = TransactionService(db)
 
-    # Create FastMCP server
-    mcp: FastMCP = FastMCP("budget-envelope-server")
+    # Create tool registry
+    tool_registry = create_tool_registry(envelope_service, transaction_service)
 
-    # Store services for tool access (use setattr to avoid attribute errors)
-    setattr(mcp, "envelope_service", envelope_service)
-    setattr(mcp, "transaction_service", transaction_service)
-    setattr(mcp, "db", db)
+    # Create FastMCP instance
+    mcp = FastMCP("budget-envelope-server")
 
-    # Configure middleware stack using composition
-    _configure_middleware(mcp, app_config, enable_auth, enable_init_check)
+    # Add service attributes for compatibility with tests and external access
+    mcp.envelope_service = envelope_service
+    mcp.transaction_service = transaction_service
+    mcp.db = db
 
-    # Register all tools
-    _register_envelope_tools(mcp, envelope_service)
-    _register_transaction_tools(mcp, transaction_service)
-    _register_utility_tools(mcp, envelope_service)
+    # Register tools manually since FastMCP doesn't support **kwargs
+    _register_fastmcp_tools(mcp, tool_registry)
+
+    # Add authentication middleware if enabled
+    if enable_auth and hasattr(app_config, "BEARER_TOKEN") and app_config.BEARER_TOKEN:
+        mcp.http_app = _create_authenticated_http_app(
+            mcp.http_app, app_config.BEARER_TOKEN
+        )
+
+    # Add MCP initialization check middleware if enabled
+    if enable_init_check:
+        mcp.http_app = _create_initialization_checked_http_app(mcp.http_app)
 
     return mcp

@@ -8,6 +8,3 @@
 - black
 - ruff
 - mypy
-
-# Github Config
-- Username: drwestman

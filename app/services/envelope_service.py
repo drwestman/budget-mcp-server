@@ -91,7 +91,8 @@ class EnvelopeService:
         )
         if not updated:
             raise ValueError(
-                f"Envelope with ID {envelope_id} not found or no valid fields to update."
+                f"Envelope with ID {envelope_id} not found or no valid fields "
+                f"to update."
             )
         result = self.get_envelope(envelope_id)
         return result
@@ -107,7 +108,8 @@ class EnvelopeService:
         """Gets the current balance for a specific envelope.
 
         Returns:
-            A dictionary containing the envelope ID, category, current balance, starting balance, and budgeted amount.
+            A dictionary containing the envelope ID, category, current balance,
+            starting balance, and budgeted amount.
         """
         if not self.db.get_envelope_by_id(envelope_id):
             raise ValueError(f"Envelope with ID {envelope_id} not found.")

@@ -439,7 +439,8 @@ class Database:
                 (
                     "INSERT INTO transactions "
                     "(id, envelope_id, amount, description, date, type) "
-                    "VALUES (nextval('transactions_id_seq'), ?, ?, ?, ?, ?) RETURNING id;"
+                    "VALUES (nextval('transactions_id_seq'), ?, ?, ?, ?, ?) "
+                    "RETURNING id;"
                 ),
                 (envelope_id, amount, description, date, type),
             ).fetchone()
@@ -518,10 +519,8 @@ class Database:
 
         try:
             results = self.conn.execute(
-                (
-                    "SELECT id, envelope_id, amount, description, date, type "
-                    "FROM transactions ORDER BY date DESC;"
-                )
+                "SELECT id, envelope_id, amount, description, date, type "
+                "FROM transactions ORDER BY date DESC;"
             ).fetchall()
             return [
                 {
@@ -710,7 +709,8 @@ class Database:
                         self.conn.execute(
                             """
                             INSERT OR REPLACE INTO motherduck.main.envelopes
-                            (id, category, budgeted_amount, starting_balance, description)
+                            (id, category, budgeted_amount, starting_balance,
+                             description)
                             VALUES (?, ?, ?, ?, ?)
                         """,
                             (

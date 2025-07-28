@@ -25,7 +25,7 @@ dev-dependencies = [
 
 [tool.black]
 line-length = 88
-target-version = ['py312']
+target-version = ["py312"]
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -63,7 +63,7 @@ python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
-exclude = ["data/", "certs/"]
+exclude = ["data/", "certs/", "build/", "dist/", ".*\\.egg-info/"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
