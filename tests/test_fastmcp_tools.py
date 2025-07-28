@@ -14,7 +14,9 @@ class TestFastMCPTools:
     @pytest.fixture
     def server(self) -> FastMCP:
         """Create a test FastMCP server instance."""
-        return create_fastmcp_server("testing")
+        return create_fastmcp_server(
+            "testing", enable_auth=False, enable_init_check=False
+        )
 
     @pytest.fixture
     def event_loop(self) -> Generator[asyncio.AbstractEventLoop, None, None]:

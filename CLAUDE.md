@@ -3,3 +3,11 @@
 
 # Testing
 - uv run pytest
+
+# Code Quality Tools
+- black
+- ruff
+- mypy
+
+# Github Config
+- Username: drwestman

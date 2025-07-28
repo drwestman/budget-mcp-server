@@ -35,22 +35,83 @@ def _create_authenticated_http_app(original_http_app: Any, bearer_token: str) ->
     return http_app_with_auth
 
 
-def _configure_authentication(mcp: FastMCP, app_config: Any, enable_auth: bool) -> None:
-    """Configure bearer token authentication middleware if enabled using composition."""
-    if enable_auth and app_config.BEARER_TOKEN:
-        # Replace the http_app method with authenticated version using composition
-        # Use setattr to avoid mypy method assignment error
+def _create_initialization_checked_http_app(original_http_app: Any) -> Any:
+    """Create HTTP app with MCP initialization check middleware using composition."""
+    _http_app_instance = None
+
+    def http_app_with_init_check(*args: Any, **kwargs: Any) -> Any:
+        nonlocal _http_app_instance
+        if _http_app_instance is None:
+            from app.auth import create_mcp_initialization_middleware
+
+            _http_app_instance = original_http_app(*args, **kwargs)
+            _http_app_instance.add_middleware(create_mcp_initialization_middleware())
+        return _http_app_instance
+
+    return http_app_with_init_check
+
+
+def _create_authenticated_and_init_checked_http_app(
+    original_http_app: Any, bearer_token: str
+) -> Any:
+    """Create HTTP app with both authentication and initialization check middleware."""
+    _http_app_instance = None
+
+    def http_app_with_auth_and_init(*args: Any, **kwargs: Any) -> Any:
+        nonlocal _http_app_instance
+        if _http_app_instance is None:
+            from app.auth import (
+                BearerTokenMiddleware,
+                create_mcp_initialization_middleware,
+            )
+
+            _http_app_instance = original_http_app(*args, **kwargs)
+            # Add initialization check first (inner middleware)
+            _http_app_instance.add_middleware(create_mcp_initialization_middleware())
+            # Add authentication second (outer middleware)
+            _http_app_instance.add_middleware(
+                BearerTokenMiddleware, bearer_token=bearer_token
+            )
+        return _http_app_instance
+
+    return http_app_with_auth_and_init
+
+
+def _configure_middleware(
+    mcp: FastMCP, app_config: Any, enable_auth: bool, enable_init_check: bool
+) -> None:
+    """
+    Configure middleware stack (authentication and initialization check) using composition.
+    """
+    if enable_auth and app_config.BEARER_TOKEN and enable_init_check:
+        # Both authentication and initialization check
+        setattr(
+            mcp,
+            "http_app",
+            _create_authenticated_and_init_checked_http_app(
+                mcp.http_app, app_config.BEARER_TOKEN
+            ),
+        )
+    elif enable_auth and app_config.BEARER_TOKEN:
+        # Only authentication (legacy behavior)
         setattr(
             mcp,
             "http_app",
             _create_authenticated_http_app(mcp.http_app, app_config.BEARER_TOKEN),
+        )
+    elif enable_init_check:
+        # Only initialization check
+        setattr(
+            mcp,
+            "http_app",
+            _create_initialization_checked_http_app(mcp.http_app),
         )
 
 
 def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService) -> None:
     """Register all envelope management tools."""
 
-    @mcp.tool()
+    @mcp.tool
     async def create_envelope(
         category: Annotated[str, "Name/category of the envelope (must be unique)"],
         budgeted_amount: Annotated[
@@ -61,7 +122,8 @@ def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService) ->
         ] = 0.0,
         description: Annotated[
             str | None,
-            "Optional description providing additional context about the envelope's purpose. Defaults to empty string",
+            "Optional description providing additional context about the "
+            "envelope's purpose. Defaults to empty string",
         ] = "",
     ) -> str:
         """Create a new budget envelope.
@@ -85,9 +147,12 @@ def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService) ->
         except Exception:
             # Log unexpected errors for debugging while providing safe user message
             logger.exception("An unexpected error occurred in create_envelope")
-            return "Internal error: An unexpected error occurred. Please contact support if the issue persists."
+            return (
+                "Internal error: An unexpected error occurred. "
+                "Please contact support if the issue persists."
+            )
 
-    @mcp.tool()
+    @mcp.tool
     async def list_envelopes() -> str:
         """Get all budget envelopes with their current balances.
 
@@ -102,7 +167,7 @@ def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService) ->
         except Exception as e:
             return f"Internal error: An unexpected error occurred: {str(e)}"
 
-    @mcp.tool()
+    @mcp.tool
     async def get_envelope(
         envelope_id: Annotated[int, "ID of the envelope to retrieve"],
     ) -> str:
@@ -121,7 +186,7 @@ def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService) ->
         except Exception as e:
             return f"Internal error: An unexpected error occurred: {str(e)}"
 
-    @mcp.tool()
+    @mcp.tool
     async def update_envelope(
         envelope_id: Annotated[int, "ID of the envelope to update"],
         category: Annotated[str | None, "New category name (optional)"] = None,
@@ -150,7 +215,7 @@ def _register_envelope_tools(mcp: FastMCP, envelope_service: EnvelopeService) ->
         except Exception as e:
             return f"Internal error: An unexpected error occurred: {str(e)}"
 
-    @mcp.tool()
+    @mcp.tool
     async def delete_envelope(
         envelope_id: Annotated[int, "ID of the envelope to delete"],
     ) -> str:
@@ -175,7 +240,7 @@ def _register_transaction_tools(
 ) -> None:
     """Register all transaction management tools."""
 
-    @mcp.tool()
+    @mcp.tool
     async def create_transaction(
         envelope_id: Annotated[int, "ID of the envelope this transaction belongs to"],
         amount: Annotated[
@@ -209,9 +274,12 @@ def _register_transaction_tools(
         except Exception:
             # Log unexpected errors for debugging while providing safe user message
             logger.exception("An unexpected error occurred in create_transaction")
-            return "Internal error: An unexpected error occurred. Please contact support if the issue persists."
+            return (
+                "Internal error: An unexpected error occurred. "
+                "Please contact support if the issue persists."
+            )
 
-    @mcp.tool()
+    @mcp.tool
     async def list_transactions(
         envelope_id: Annotated[
             int | None, "Filter transactions by envelope ID (optional)"
@@ -234,7 +302,7 @@ def _register_transaction_tools(
         except Exception as e:
             return f"Internal error: An unexpected error occurred: {str(e)}"
 
-    @mcp.tool()
+    @mcp.tool
     async def get_transaction(
         transaction_id: Annotated[int, "ID of the transaction to retrieve"],
     ) -> str:
@@ -253,7 +321,7 @@ def _register_transaction_tools(
         except Exception as e:
             return f"Internal error: An unexpected error occurred: {str(e)}"
 
-    @mcp.tool()
+    @mcp.tool
     async def update_transaction(
         transaction_id: Annotated[int, "ID of the transaction to update"],
         envelope_id: Annotated[int | None, "New envelope ID (optional)"] = None,
@@ -281,7 +349,7 @@ def _register_transaction_tools(
         except Exception as e:
             return f"Internal error: An unexpected error occurred: {str(e)}"
 
-    @mcp.tool()
+    @mcp.tool
     async def delete_transaction(
         transaction_id: Annotated[int, "ID of the transaction to delete"],
     ) -> str:
@@ -304,7 +372,7 @@ def _register_transaction_tools(
 def _register_utility_tools(mcp: FastMCP, envelope_service: EnvelopeService) -> None:
     """Register all utility tools."""
 
-    @mcp.tool()
+    @mcp.tool
     async def get_envelope_balance(
         envelope_id: Annotated[int, "ID of the envelope"],
     ) -> str:
@@ -323,7 +391,7 @@ def _register_utility_tools(mcp: FastMCP, envelope_service: EnvelopeService) -> 
         except Exception as e:
             return f"Internal error: An unexpected error occurred: {str(e)}"
 
-    @mcp.tool()
+    @mcp.tool
     async def get_budget_summary() -> str:
         """Get overall budget status and summary.
 
@@ -355,7 +423,7 @@ def _register_utility_tools(mcp: FastMCP, envelope_service: EnvelopeService) -> 
         except Exception as e:
             return f"Internal error: An unexpected error occurred: {str(e)}"
 
-    @mcp.tool()
+    @mcp.tool
     async def get_cloud_status() -> str:
         """Get MotherDuck cloud connection status and sync information.
 
@@ -371,7 +439,7 @@ def _register_utility_tools(mcp: FastMCP, envelope_service: EnvelopeService) -> 
         except Exception as e:
             return f"Internal error: An unexpected error occurred: {str(e)}"
 
-    @mcp.tool()
+    @mcp.tool
     async def sync_to_cloud() -> str:
         """Synchronize local data to MotherDuck cloud database.
 
@@ -386,7 +454,7 @@ def _register_utility_tools(mcp: FastMCP, envelope_service: EnvelopeService) -> 
         except Exception as e:
             return f"Internal error: An unexpected error occurred: {str(e)}"
 
-    @mcp.tool()
+    @mcp.tool
     async def sync_from_cloud() -> str:
         """Synchronize data from MotherDuck cloud to local database.
 
@@ -403,14 +471,20 @@ def _register_utility_tools(mcp: FastMCP, envelope_service: EnvelopeService) -> 
 
 
 def create_fastmcp_server(
-    config_name: str | None = None, enable_auth: bool = True
+    config_name: str | None = None,
+    enable_auth: bool = True,
+    enable_init_check: bool = True,
 ) -> FastMCP:
     """
     Factory function to create FastMCP server with all tools registered.
 
     Args:
-        config_name (str): Configuration environment ('development', 'production', 'testing')
-        enable_auth (bool): Whether to enable bearer token authentication for HTTP transport
+        config_name (str): Configuration environment
+            ('development', 'production', 'testing')
+        enable_auth (bool): Whether to enable bearer token authentication
+            for HTTP transport
+        enable_init_check (bool): Whether to enable MCP initialization check
+            middleware to ensure proper protocol handshake
     Returns:
         FastMCP: Configured FastMCP server instance with middleware properly configured
     """
@@ -451,8 +525,8 @@ def create_fastmcp_server(
     setattr(mcp, "transaction_service", transaction_service)
     setattr(mcp, "db", db)
 
-    # Configure authentication using composition
-    _configure_authentication(mcp, app_config, enable_auth)
+    # Configure middleware stack using composition
+    _configure_middleware(mcp, app_config, enable_auth, enable_init_check)
 
     # Register all tools
     _register_envelope_tools(mcp, envelope_service)

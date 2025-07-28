@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from app.config import Config, DevelopmentConfig, ProductionConfig, ConfigTesting
+from app.config import Config, ConfigTesting, DevelopmentConfig, ProductionConfig
 
 
 class TestAuthConfiguration:

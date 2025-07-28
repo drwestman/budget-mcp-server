@@ -46,6 +46,18 @@ exclude = ["data", "certs", ".git", ".mypy_cache", ".pytest_cache", ".venv"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+]
+# Exclude standalone integration test scripts
+norecursedirs = ["data", "certs", ".git", ".mypy_cache", ".pytest_cache", ".venv"]
+
 [tool.mypy]
 python_version = "3.12"
 warn_return_any = true

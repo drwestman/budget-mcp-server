@@ -26,7 +26,9 @@ class TestFastMCPServerAuth:
 
     def test_create_server_without_auth(self) -> None:
         """Test creating FastMCP server with authentication disabled."""
-        server = create_fastmcp_server("testing", enable_auth=False)
+        server = create_fastmcp_server(
+            "testing", enable_auth=False, enable_init_check=False
+        )
 
         assert server is not None
         assert hasattr(server, "envelope_service")
@@ -36,7 +38,9 @@ class TestFastMCPServerAuth:
     @patch.dict(os.environ, {"BEARER_TOKEN": "test-token-123"})
     def test_create_server_with_auth_enabled(self) -> None:
         """Test creating FastMCP server with authentication enabled."""
-        server = create_fastmcp_server("testing", enable_auth=True)
+        server = create_fastmcp_server(
+            "testing", enable_auth=True, enable_init_check=False
+        )
 
         assert server is not None
         assert hasattr(server, "envelope_service")
@@ -59,7 +63,9 @@ class TestFastMCPServerAuth:
     @patch.dict(os.environ, {"BEARER_TOKEN": "test-token-123"})
     def test_server_http_app_with_auth_middleware(self) -> None:
         """Test that HTTP app properly applies authentication middleware."""
-        server = create_fastmcp_server("testing", enable_auth=True)
+        server = create_fastmcp_server(
+            "testing", enable_auth=True, enable_init_check=False
+        )
         http_app = server.http_app()
         client = TestClient(http_app)
 
@@ -81,7 +87,9 @@ class TestFastMCPServerAuth:
     @patch.dict(os.environ, {"BEARER_TOKEN": "test-token-123"})
     def test_server_http_app_instance_consistency(self) -> None:
         """Test that HTTP app instance is consistent across calls."""
-        server = create_fastmcp_server("testing", enable_auth=True)
+        server = create_fastmcp_server(
+            "testing", enable_auth=True, enable_init_check=False
+        )
 
         # Get HTTP app multiple times
         http_app1 = server.http_app()
@@ -97,7 +105,9 @@ class TestFastMCPServerAuth:
             if "BEARER_TOKEN" in os.environ:
                 del os.environ["BEARER_TOKEN"]
 
-            server = create_fastmcp_server("testing", enable_auth=False)
+            server = create_fastmcp_server(
+                "testing", enable_auth=False, enable_init_check=False
+            )
             assert server is not None
 
             # HTTP app should work without authentication
@@ -117,7 +127,9 @@ class TestFastMCPServerAuth:
                 del os.environ["BEARER_TOKEN"]
 
             # Should work but auth won't be applied
-            server = create_fastmcp_server("testing", enable_auth=True)
+            server = create_fastmcp_server(
+                "testing", enable_auth=True, enable_init_check=False
+            )
             assert server is not None
 
             # HTTP app should work without authentication middleware
@@ -142,7 +154,9 @@ class TestFastMCPServerAuthIntegration:
     @patch.dict(os.environ, {"BEARER_TOKEN": "integration-test-token"})
     def test_mcp_tools_with_auth(self) -> None:
         """Test that MCP tools work correctly when authentication is enabled."""
-        server = create_fastmcp_server("testing", enable_auth=True)
+        server = create_fastmcp_server(
+            "testing", enable_auth=True, enable_init_check=False
+        )
         http_app = server.http_app()
         with TestClient(http_app) as client:
             # Test MCP endpoint with authentication
@@ -166,7 +180,9 @@ class TestFastMCPServerAuthIntegration:
     @pytest.mark.asyncio
     async def test_tools_execution_with_auth(self) -> None:
         """Test that individual tools execute correctly with authentication enabled."""
-        server = create_fastmcp_server("testing", enable_auth=True)
+        server = create_fastmcp_server(
+            "testing", enable_auth=True, enable_init_check=False
+        )
 
         # Get tools from server
         tools = await server.get_tools()

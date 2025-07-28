@@ -1,3 +1,4 @@
+import datetime
 import logging
 from datetime import date
 from typing import Any, cast
@@ -12,7 +13,8 @@ class Database:
     """
     Manages all interactions with the DuckDB database.
     Supports local, cloud (MotherDuck), and hybrid connection modes.
-    Adheres to the Single Responsibility Principle (SRP) by focusing solely on data persistence.
+    Adheres to the Single Responsibility Principle (SRP) by focusing
+    solely on data persistence.
     """
 
     def __init__(
@@ -25,9 +27,11 @@ class Database:
         Initializes the Database connection and ensures tables exist.
 
         Args:
-            db_path (str): Path to the DuckDB database file (for local mode) or database name (for cloud mode)
+            db_path (str): Path to the DuckDB database file (for local mode)
+                or database name (for cloud mode)
             mode (str): Connection mode - 'local', 'cloud', or 'hybrid'
-            motherduck_config (dict, optional): MotherDuck configuration containing token and database name
+            motherduck_config (dict, optional): MotherDuck configuration
+                containing token and database name
         """
         self.db_path = db_path
         self.mode = mode
@@ -49,7 +53,8 @@ class Database:
         """Validate configuration before attempting connection."""
         if self.mode not in ["local", "cloud", "hybrid"]:
             raise ValueError(
-                f"Invalid database mode '{self.mode}'. Must be 'local', 'cloud', or 'hybrid'"
+                f"Invalid database mode '{self.mode}'. "
+                f"Must be 'local', 'cloud', or 'hybrid'"
             )
 
         if self.mode in ["cloud", "hybrid"]:
@@ -94,7 +99,8 @@ class Database:
 
         try:
             logger.info(
-                f"Ensuring MotherDuck database '{database}' exists for {self.mode} mode..."
+                f"Ensuring MotherDuck database '{database}' exists "
+                f"for {self.mode} mode..."
             )
 
             # First, connect to MotherDuck without specifying a database to create it
@@ -113,7 +119,8 @@ class Database:
             # Let the main connection logic handle the fallback
 
     def _connect(self) -> None:
-        """Establishes a connection to the DuckDB database based on the configured mode."""
+        """Establishes a connection to the DuckDB database based on the
+        configured mode."""
         try:
             connection_string = self._get_connection_string()
 
@@ -128,7 +135,8 @@ class Database:
                 self.is_cloud_connected = True
                 self.connection_info["primary"] = "cloud"
                 logger.info(
-                    f"Connected to MotherDuck database: {self.motherduck_config.get('database', 'budget_app')}"
+                    f"Connected to MotherDuck database: "
+                    f"{self.motherduck_config.get('database', 'budget_app')}"
                 )
 
             elif self.mode == "hybrid":
@@ -139,7 +147,8 @@ class Database:
                 self.conn = duckdb.connect(database=self.db_path, read_only=False)
                 self.connection_info["primary"] = "local"
 
-                # Verify MotherDuck connectivity (without attachment due to alias limitation)
+                # Verify MotherDuck connectivity
+                # (without attachment due to alias limitation)
                 try:
                     token = self.motherduck_config.get("token")
                     database = self.motherduck_config.get("database", "budget_app")
@@ -152,7 +161,8 @@ class Database:
                     self.is_cloud_connected = True
                     self.connection_info["cloud_available"] = True
                     logger.info(
-                        f"MotherDuck database '{database}' is accessible for hybrid operations"
+                        f"MotherDuck database '{database}' is accessible "
+                        f"for hybrid operations"
                     )
 
                 except Exception as e:
@@ -175,7 +185,8 @@ class Database:
 
                 # Both cloud and hybrid modes can fall back to local-only
                 logger.warning(
-                    f"MotherDuck connection failed in {self.mode} mode. Falling back to local-only connection..."
+                    f"MotherDuck connection failed in {self.mode} mode. "
+                    f"Falling back to local-only connection..."
                 )
                 try:
                     self.conn = duckdb.connect(database=self.db_path, read_only=False)
@@ -187,7 +198,8 @@ class Database:
                         "requested_mode": self.mode,
                     }
                     logger.warning(
-                        f"Successfully connected in local-only mode (requested: {self.mode})"
+                        f"Successfully connected in local-only mode "
+                        f"(requested: {self.mode})"
                     )
                     return
                 except Exception as fallback_error:
@@ -257,7 +269,11 @@ class Database:
 
         try:
             result = self.conn.execute(
-                "INSERT INTO envelopes (id, category, budgeted_amount, starting_balance, description) VALUES (nextval('envelopes_id_seq'), ?, ?, ?, ?) RETURNING id;",
+                (
+                    "INSERT INTO envelopes "
+                    "(id, category, budgeted_amount, starting_balance, description) "
+                    "VALUES (nextval('envelopes_id_seq'), ?, ?, ?, ?) RETURNING id;"
+                ),
                 (category, budgeted_amount, starting_balance, description),
             ).fetchone()
             self.conn.commit()
@@ -269,7 +285,8 @@ class Database:
                 and f"category: {category}" in error_str
             ):  # More robust check
                 raise ValueError(f"Envelope with category '{category}' already exists.")
-            # Re-raise other constraint exceptions that are not unique violations on category
+            # Re-raise other constraint exceptions that are not unique
+            # violations on category
             raise
         except Exception as e:
             logger.error(f"Error inserting envelope: {e}")
@@ -282,7 +299,8 @@ class Database:
 
         try:
             result = self.conn.execute(
-                "SELECT id, category, budgeted_amount, starting_balance, description FROM envelopes WHERE id = ?;",
+                "SELECT id, category, budgeted_amount, starting_balance, "
+                "description FROM envelopes WHERE id = ?;",
                 (envelope_id,),
             ).fetchone()
             if result:
@@ -305,7 +323,8 @@ class Database:
 
         try:
             result = self.conn.execute(
-                "SELECT id, category, budgeted_amount, starting_balance, description FROM envelopes WHERE category = ?;",
+                "SELECT id, category, budgeted_amount, starting_balance, "
+                "description FROM envelopes WHERE category = ?;",
                 (category,),
             ).fetchone()
             if result:
@@ -328,7 +347,8 @@ class Database:
 
         try:
             results = self.conn.execute(
-                "SELECT id, category, budgeted_amount, starting_balance, description FROM envelopes;"
+                "SELECT id, category, budgeted_amount, starting_balance, "
+                "description FROM envelopes;"
             ).fetchall()
             return [
                 {
@@ -416,7 +436,11 @@ class Database:
 
         try:
             result = self.conn.execute(
-                "INSERT INTO transactions (id, envelope_id, amount, description, date, type) VALUES (nextval('transactions_id_seq'), ?, ?, ?, ?, ?) RETURNING id;",
+                (
+                    "INSERT INTO transactions "
+                    "(id, envelope_id, amount, description, date, type) "
+                    "VALUES (nextval('transactions_id_seq'), ?, ?, ?, ?, ?) RETURNING id;"
+                ),
                 (envelope_id, amount, description, date, type),
             ).fetchone()
             self.conn.commit()
@@ -437,7 +461,8 @@ class Database:
 
         try:
             result = self.conn.execute(
-                "SELECT id, envelope_id, amount, description, date, type FROM transactions WHERE id = ?;",
+                "SELECT id, envelope_id, amount, description, date, type "
+                "FROM transactions WHERE id = ?;",
                 (transaction_id,),
             ).fetchone()
             if result:
@@ -465,7 +490,10 @@ class Database:
 
         try:
             results = self.conn.execute(
-                "SELECT id, envelope_id, amount, description, date, type FROM transactions WHERE envelope_id = ? ORDER BY date DESC;",
+                (
+                    "SELECT id, envelope_id, amount, description, date, type "
+                    "FROM transactions WHERE envelope_id = ? ORDER BY date DESC;"
+                ),
                 (envelope_id,),
             ).fetchall()
             return [
@@ -490,7 +518,10 @@ class Database:
 
         try:
             results = self.conn.execute(
-                "SELECT id, envelope_id, amount, description, date, type FROM transactions ORDER BY date DESC;"
+                (
+                    "SELECT id, envelope_id, amount, description, date, type "
+                    "FROM transactions ORDER BY date DESC;"
+                )
             ).fetchall()
             return [
                 {
@@ -521,7 +552,7 @@ class Database:
             raise ValueError("Database connection not available")
 
         updates: list[str] = []
-        params: list[int | float | str | date] = []
+        params: list[int | float | str | datetime.date] = []
         if envelope_id is not None:
             updates.append("envelope_id = ?")
             params.append(envelope_id)
@@ -771,7 +802,8 @@ class Database:
 
         if self.mode == "cloud":
             raise ValueError(
-                "sync_from_cloud not applicable in cloud mode (data is already in cloud)"
+                "sync_from_cloud not applicable in cloud mode "
+                "(data is already in cloud)"
             )
 
         if self.conn is None:

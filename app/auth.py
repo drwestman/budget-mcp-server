@@ -1,9 +1,11 @@
 """
-Authentication middleware for FastMCP server with bearer token validation.
+Authentication and initialization middleware for FastMCP server.
 """
 
+import json
 import secrets
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastapi import Request, status
 from fastapi.responses import JSONResponse, Response
@@ -125,5 +127,221 @@ def create_auth_middleware(
     # Return a middleware class factory
     def middleware_factory(app: ASGIApp) -> BearerTokenMiddleware:
         return BearerTokenMiddleware(app, bearer_token)
+
+    return middleware_factory
+
+
+class MCPInitializationMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to enforce MCP protocol initialization requirements.
+
+    This middleware ensures that clients have properly completed the MCP
+    initialization handshake before allowing access to tools and other
+    MCP resources. It tracks session state and blocks tool requests
+    from uninitialized sessions.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        """
+        Initialize MCP initialization middleware.
+
+        Args:
+            app: ASGI application
+        """
+        super().__init__(app)
+        # Store initialized session state per connection/session
+        # Using weak references or session-based tracking would be better
+        # for production, but this simple approach works for most use cases
+        self._initialized_sessions: set[str] = set()
+
+    def _get_session_id(self, request: Request) -> str:
+        """
+        Extract a session identifier from the request.
+
+        For HTTP requests, we use the client IP and User-Agent as a simple
+        session identifier. In production, this could be enhanced with
+        proper session management.
+
+        Args:
+            request: The incoming request
+
+        Returns:
+            Session identifier string
+        """
+        client_ip = (
+            getattr(request.client, "host", "unknown") if request.client else "unknown"
+        )
+        user_agent = request.headers.get("user-agent", "unknown")
+        return f"{client_ip}:{user_agent}"
+
+    def _is_mcp_protocol_request(self, request: Request) -> bool:
+        """
+        Check if this is an MCP protocol-level request that should be allowed
+        before initialization is complete.
+
+        Args:
+            request: The incoming request
+
+        Returns:
+            True if this is a protocol request, False otherwise
+        """
+        # Allow MCP protocol requests (initialize, ping, etc.)
+        # These typically come as JSON-RPC over HTTP POST
+        if request.method != "POST":
+            return False
+
+        content_type = request.headers.get("content-type", "")
+        if "application/json" not in content_type:
+            return False
+
+        # We can't easily inspect the body here without consuming it,
+        # so we'll allow all JSON POST requests and check the body
+        # in the request processing
+        return True
+
+    async def _check_request_body_for_protocol(
+        self, request: Request
+    ) -> tuple[bool, dict[str, Any] | None]:
+        """
+        Check if the request body contains MCP protocol messages.
+
+        Args:
+            request: The incoming request
+
+        Returns:
+            Tuple of (is_protocol_request, parsed_body)
+        """
+        try:
+            # Read the body
+            body = await request.body()
+            if not body:
+                return False, None
+
+            # Parse JSON
+            data = json.loads(body.decode())
+
+            # Check for MCP protocol methods
+            method = data.get("method", "")
+
+            # Allow these MCP protocol methods before initialization
+            allowed_methods = {
+                "initialize",
+                "notifications/initialized",
+                "ping",
+                "logs/setLevel",
+            }
+
+            return method in allowed_methods, data
+
+        except (json.JSONDecodeError, UnicodeDecodeError, KeyError):
+            return False, None
+
+    def _handle_initialized_notification(
+        self, session_id: str, data: dict[str, Any]
+    ) -> None:
+        """
+        Handle the MCP initialized notification to mark session as ready.
+
+        Args:
+            session_id: The session identifier
+            data: The parsed request data
+        """
+        if data.get("method") == "notifications/initialized":
+            self._initialized_sessions.add(session_id)
+
+    def _is_session_initialized(self, session_id: str) -> bool:
+        """
+        Check if a session has completed MCP initialization.
+
+        Args:
+            session_id: The session identifier
+
+        Returns:
+            True if session is initialized, False otherwise
+        """
+        return session_id in self._initialized_sessions
+
+    def _create_initialization_error(self) -> JSONResponse:
+        """
+        Create an error response for uninitialized sessions.
+
+        Returns:
+            JSON error response
+        """
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "error": "MCP session not initialized",
+                "message": (
+                    "Client must complete MCP initialization handshake before "
+                    "accessing tools. Send 'initialize' request followed by "
+                    "'notifications/initialized' notification."
+                ),
+                "code": "mcp_not_initialized",
+            },
+        )
+
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        """
+        Middleware function to check MCP initialization state.
+
+        Args:
+            request: FastAPI request object
+            call_next: Next middleware/handler in the chain
+
+        Returns:
+            Response from next handler if initialized, error if not
+        """
+        session_id = self._get_session_id(request)
+
+        # Check if this might be an MCP protocol request
+        if self._is_mcp_protocol_request(request):
+            # Check the actual request body
+            is_protocol, data = await self._check_request_body_for_protocol(request)
+
+            if is_protocol and data:
+                # Handle initialized notification
+                self._handle_initialized_notification(session_id, data)
+
+                # Allow protocol requests to proceed
+                # We need to reconstruct the request body since we consumed it
+                async def receive() -> dict[str, Any]:
+                    return {
+                        "type": "http.request",
+                        "body": json.dumps(data).encode(),
+                        "more_body": False,
+                    }
+
+                # Replace the request's receive callable
+                request._receive = receive
+                response = await call_next(request)
+                return response
+
+        # For non-protocol requests, check if session is initialized
+        if not self._is_session_initialized(session_id):
+            return self._create_initialization_error()
+
+        # Session is initialized, proceed normally
+        response = await call_next(request)
+        return response
+
+
+def create_mcp_initialization_middleware() -> (
+    Callable[[ASGIApp], MCPInitializationMiddleware]
+):
+    """
+    Factory function to create MCP initialization middleware.
+
+    Returns:
+        MCPInitializationMiddleware class factory
+
+    Example:
+        app.add_middleware(create_mcp_initialization_middleware())
+    """
+
+    def middleware_factory(app: ASGIApp) -> MCPInitializationMiddleware:
+        return MCPInitializationMiddleware(app)
 
     return middleware_factory
