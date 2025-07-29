@@ -29,7 +29,7 @@ class ToolRegistry:
         self.envelope_service = envelope_service
         self.transaction_service = transaction_service
         self._tools: dict[str, dict[str, Any]] = {}
-        self._handlers: dict[str, Callable] = {}
+        self._handlers: dict[str, tuple[Callable, Any]] = {}
         self._register_all_tools()
 
     def _register_all_tools(self) -> None:
@@ -48,7 +48,10 @@ class ToolRegistry:
         for tool_name in envelope_tools:
             self._tools[tool_name] = schemas[tool_name]
             handler_name = f"handle_{tool_name}"
-            self._handlers[tool_name] = getattr(handlers, handler_name)
+            self._handlers[tool_name] = (
+                getattr(handlers, handler_name),
+                self.envelope_service
+            )
 
         # Transaction tools
         transaction_tools = [
@@ -62,7 +65,10 @@ class ToolRegistry:
         for tool_name in transaction_tools:
             self._tools[tool_name] = schemas[tool_name]
             handler_name = f"handle_{tool_name}"
-            self._handlers[tool_name] = getattr(handlers, handler_name)
+            self._handlers[tool_name] = (
+                getattr(handlers, handler_name),
+                self.transaction_service
+            )
 
         # Utility tools
         utility_tools = [
@@ -76,7 +82,10 @@ class ToolRegistry:
         for tool_name in utility_tools:
             self._tools[tool_name] = schemas[tool_name]
             handler_name = f"handle_{tool_name}"
-            self._handlers[tool_name] = getattr(handlers, handler_name)
+            self._handlers[tool_name] = (
+                getattr(handlers, handler_name),
+                self.envelope_service
+            )
 
     def get_tool_list(self) -> list[str]:
         """Get list of all registered tool names."""
@@ -94,30 +103,14 @@ class ToolRegistry:
 
     async def call_tool(
         self, tool_name: str, arguments: dict[str, Any]
-    ) -> HandlerResponse:
+    ) -> Any:
         """Call a tool handler."""
         if tool_name not in self._handlers:
             raise ValueError(f"Unknown tool: {tool_name}")
 
-        handler = self._handlers[tool_name]
-
-        # Determine which service to use based on tool category
-        if tool_name in [
-            "create_envelope",
-            "list_envelopes",
-            "get_envelope",
-            "update_envelope",
-            "delete_envelope",
-            "get_envelope_balance",
-            "get_budget_summary",
-            "get_cloud_status",
-            "sync_to_cloud",
-            "sync_from_cloud",
-        ]:
-            return await handler(self.envelope_service, arguments)
-        else:
-            return await handler(self.transaction_service, arguments)
-
+        # Retrieve both the handler function and its associated service
+        handler, service = self._handlers[tool_name]
+        return await handler(service, arguments)
 
 class MCPToolAdapter:
     """Adapter for MCP Python SDK tools."""
