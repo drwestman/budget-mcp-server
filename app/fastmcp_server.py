@@ -2,6 +2,7 @@
 """
 FastMCP server implementation for Budget Cash Envelope MCP Server.
 """
+
 import json
 import logging
 import os

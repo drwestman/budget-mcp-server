@@ -3,6 +3,7 @@
 Standard MCP Python SDK server implementation for Budget Cash Envelope MCP Server.
 This provides stdio transport compatibility while FastMCP handles HTTP transport.
 """
+
 import logging
 import os
 from typing import Any

@@ -3,6 +3,7 @@
 Entry point for the Budget Cash Envelope MCP Server application.
 Run this file to start the FastMCP server with Streamable HTTP transport.
 """
+
 import os
 import sys
 from typing import Any

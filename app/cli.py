@@ -4,6 +4,7 @@ CLI entry point for the Budget Cash Envelope MCP Server.
 This module provides the command-line interface for uvx installation using standard
 MCP SDK.
 """
+
 import asyncio
 import os
 import sys

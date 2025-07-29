@@ -246,9 +246,7 @@ def test_get_transactions_by_envelope_empty_result(
         "id": envelope_id,
         "name": "Empty Envelope",
     }
-    mock_db.get_transactions_for_envelope.return_value = (
-        []
-    )  # No transactions for this envelope
+    mock_db.get_transactions_for_envelope.return_value = []  # No transactions for this envelope
 
     transactions = transaction_service.get_transactions_by_envelope(envelope_id)
 

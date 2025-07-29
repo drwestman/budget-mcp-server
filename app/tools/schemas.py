@@ -3,6 +3,7 @@
 Shared tool schemas for Budget Cash Envelope MCP Server.
 This module defines all tool schemas in one place to eliminate duplication.
 """
+
 from typing import Any
 
 # Envelope tool schemas

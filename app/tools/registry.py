@@ -3,6 +3,7 @@
 Tool registry system for Budget Cash Envelope MCP Server.
 This module provides a scalable way to register and dispatch tools.
 """
+
 import json
 from collections.abc import Callable
 from typing import Any

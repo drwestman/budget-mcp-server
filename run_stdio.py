@@ -3,6 +3,7 @@
 Stdio entry point for the Budget Cash Envelope MCP Server application.
 Run this file to start the MCP server with stdio transport.
 """
+
 import asyncio
 import os
 

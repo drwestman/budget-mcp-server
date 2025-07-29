@@ -306,21 +306,8 @@ class MCPInitializationMiddleware(BaseHTTPMiddleware):
                 self._handle_initialized_notification(session_id, data)
 
                 # Allow protocol requests to proceed
-                # We need to reconstruct the request body since we consumed it
-                async def receive() -> dict[str, Any]:
-                    return {
-                        "type": "http.request",
-                        "body": json.dumps(data).encode(),
-                        "more_body": False,
-                    }
-
-                # Replace the request's receive callable
-                # WARNING: This relies on internal Starlette Request object
-                # attribute (_receive) which is undocumented and may break in
-                # future FastAPI/Starlette versions. Monitor for breaking changes.
-                request._receive = receive
-                response = await call_next(request)
-                return response
+                # Reconstruct request with proper body for downstream processing
+                return await self._create_request_with_body(request, data, call_next)
 
         # For non-protocol requests, check if session is initialized
         if not self._is_session_initialized(session_id):
@@ -330,10 +317,59 @@ class MCPInitializationMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         return response
 
+    async def _create_request_with_body(
+        self,
+        request: Request,
+        data: dict[str, Any],
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        """
+        Create a new request with reconstructed body for downstream processing.
 
-def create_mcp_initialization_middleware() -> (
-    Callable[[ASGIApp], MCPInitializationMiddleware]
-):
+        This method properly handles request body reconstruction without
+        relying on internal Starlette APIs.
+
+        Args:
+            request: Original request object
+            data: Parsed request body data
+            call_next: Next middleware/handler in the chain
+
+        Returns:
+            Response from downstream handlers
+        """
+        # Check if we have a proper Starlette Request with scope
+        if hasattr(request, "scope") and request.scope:
+            # Serialize the data back to JSON bytes
+            body_bytes = json.dumps(data).encode()
+
+            # Create new ASGI receive callable that provides the reconstructed body
+            async def receive() -> dict[str, Any]:
+                return {
+                    "type": "http.request",
+                    "body": body_bytes,
+                    "more_body": False,
+                }
+
+            # Create a new Request object with the reconstructed body
+            # This uses the documented Starlette API
+            new_request = Request(request.scope, receive)
+            return await call_next(new_request)
+        else:
+            # For testing or other cases where scope is not available,
+            # create a mock body method that returns the reconstructed data
+            body_bytes = json.dumps(data).encode()
+
+            async def mock_body() -> bytes:
+                return body_bytes
+
+            # Replace the body method with our reconstructed data
+            setattr(request, "body", mock_body)
+            return await call_next(request)
+
+
+def create_mcp_initialization_middleware() -> Callable[
+    [ASGIApp], MCPInitializationMiddleware
+]:
     """
     Factory function to create MCP initialization middleware.
 
