@@ -14,7 +14,6 @@ from fastmcp import FastMCP
 from app.services.envelope_service import EnvelopeService
 from app.services.transaction_service import TransactionService
 from app.tools import handlers
-from app.tools.handlers import HandlerResponse
 from app.tools.schemas import get_all_tool_schemas
 
 
@@ -50,7 +49,7 @@ class ToolRegistry:
             handler_name = f"handle_{tool_name}"
             self._handlers[tool_name] = (
                 getattr(handlers, handler_name),
-                self.envelope_service
+                self.envelope_service,
             )
 
         # Transaction tools
@@ -67,7 +66,7 @@ class ToolRegistry:
             handler_name = f"handle_{tool_name}"
             self._handlers[tool_name] = (
                 getattr(handlers, handler_name),
-                self.transaction_service
+                self.transaction_service,
             )
 
         # Utility tools
@@ -84,7 +83,7 @@ class ToolRegistry:
             handler_name = f"handle_{tool_name}"
             self._handlers[tool_name] = (
                 getattr(handlers, handler_name),
-                self.envelope_service
+                self.envelope_service,
             )
 
     def get_tool_list(self) -> list[str]:
@@ -101,9 +100,7 @@ class ToolRegistry:
         """Get all tool schemas."""
         return self._tools
 
-    async def call_tool(
-        self, tool_name: str, arguments: dict[str, Any]
-    ) -> Any:
+    async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any:
         """Call a tool handler."""
         if tool_name not in self._handlers:
             raise ValueError(f"Unknown tool: {tool_name}")
@@ -111,6 +108,7 @@ class ToolRegistry:
         # Retrieve both the handler function and its associated service
         handler, service = self._handlers[tool_name]
         return await handler(service, arguments)
+
 
 class MCPToolAdapter:
     """Adapter for MCP Python SDK tools."""

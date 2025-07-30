@@ -1,4 +1,5 @@
 from datetime import date as date_class
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -246,7 +247,9 @@ def test_get_transactions_by_envelope_empty_result(
         "id": envelope_id,
         "name": "Empty Envelope",
     }
-    mock_db.get_transactions_for_envelope.return_value = []  # No transactions for this envelope
+    mock_db.get_transactions_for_envelope.return_value = (
+        []
+    )  # No transactions for this envelope
 
     transactions = transaction_service.get_transactions_by_envelope(envelope_id)
 
@@ -302,13 +305,18 @@ def test_update_transaction_success(
     transaction_service: TransactionService, mock_db: MagicMock
 ) -> None:
     transaction_id = 101
-    update_data = {
+    update_data: dict[str, Any] = {
         "envelope_id": 2,  # Changing envelope
         "amount": 75.25,
         "description": "Updated lunch expense",
         "date": "2024-07-27",
         "type": "expense",
     }
+    envelope_id: int = update_data["envelope_id"]
+    amount: float = update_data["amount"]
+    description: str = update_data["description"]
+    date: str = update_data["date"]
+    type_: str = update_data["type"]
     # Mock that the new envelope_id exists
     mock_db.get_envelope_by_id.return_value = {
         "id": update_data["envelope_id"],
@@ -321,7 +329,12 @@ def test_update_transaction_success(
     mock_db.get_transaction_by_id.return_value = updated_transaction_data
 
     updated_transaction = transaction_service.update_transaction(
-        transaction_id, **update_data
+        transaction_id,
+        envelope_id=envelope_id,
+        amount=amount,
+        description=description,
+        date=date,
+        type=type_,
     )
 
     mock_db.get_envelope_by_id.assert_called_once_with(update_data["envelope_id"])
@@ -366,7 +379,7 @@ def test_update_transaction_partial_fields(
     mock_db.get_transaction_by_id.return_value = final_transaction_state
 
     updated_transaction = transaction_service.update_transaction(
-        transaction_id, **update_data
+        transaction_id, description=update_data["description"]
     )
 
     mock_db.get_envelope_by_id.assert_not_called()  # envelope_id not in update_data
@@ -395,7 +408,11 @@ def test_update_transaction_invalid_envelope(
     mock_db.get_envelope_by_id.return_value = None
 
     with pytest.raises(ValueError) as excinfo:
-        transaction_service.update_transaction(transaction_id, **update_data)
+        transaction_service.update_transaction(
+            transaction_id,
+            envelope_id=update_data["envelope_id"],
+            amount=update_data["amount"],
+        )
 
     assert f"Envelope with ID {invalid_envelope_id} does not exist." in str(
         excinfo.value
@@ -415,10 +432,13 @@ def test_update_transaction_invalid_envelope(
     ],
 )
 def test_update_transaction_invalid_input_types(
-    transaction_service, mock_db, field, value, expected_message_part
-):
+    transaction_service: TransactionService,
+    mock_db: MagicMock,
+    field: str,
+    value: Any,
+    expected_message_part: str,
+) -> None:
     transaction_id = 104
-    update_args = {field: value}
 
     # Reset get_envelope_by_id mock if it was set by a previous test, ensure it doesn't interfere
     # if envelope_id is part of the update_args (it's not in these parameterized tests)
@@ -428,7 +448,7 @@ def test_update_transaction_invalid_input_types(
     mock_db.get_envelope_by_id.return_value = {"id": 1, "name": "Default Envelope"}
 
     with pytest.raises(ValueError) as excinfo:
-        transaction_service.update_transaction(transaction_id, **update_args)
+        transaction_service.update_transaction(transaction_id, **{field: value})
 
     assert expected_message_part in str(excinfo.value)
     mock_db.update_transaction.assert_not_called()
@@ -445,7 +465,9 @@ def test_update_transaction_db_failure(
     mock_db.get_envelope_by_id.reset_mock()
 
     with pytest.raises(ValueError) as excinfo:
-        transaction_service.update_transaction(transaction_id, **update_data)
+        transaction_service.update_transaction(
+            transaction_id, amount=update_data["amount"]
+        )
 
     expected_call_args = {
         "envelope_id": None,

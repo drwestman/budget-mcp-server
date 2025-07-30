@@ -2,8 +2,12 @@
 Authentication and initialization middleware for FastMCP server.
 """
 
+import asyncio
 import json
+import logging
+import os
 import secrets
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -11,6 +15,8 @@ from fastapi import Request, status
 from fastapi.responses import JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
+
+logger = logging.getLogger(__name__)
 
 
 class BearerTokenMiddleware(BaseHTTPMiddleware):
@@ -149,10 +155,43 @@ class MCPInitializationMiddleware(BaseHTTPMiddleware):
             app: ASGI application
         """
         super().__init__(app)
-        # Store initialized session state per connection/session
-        # Using weak references or session-based tracking would be better
-        # for production, but this simple approach works for most use cases
-        self._initialized_sessions: set[str] = set()
+        # Store initialized session state with TTL (session_id -> timestamp)
+        self._initialized_sessions: dict[str, float] = {}
+
+        # Configuration from environment variables with safe defaults
+        self._session_ttl = self._get_env_int("MCP_SESSION_TTL", 3600)  # 1 hour
+        self._cleanup_interval = self._get_env_int(
+            "MCP_CLEANUP_INTERVAL", 300
+        )  # 5 minutes
+
+        # Background cleanup task
+        self._cleanup_task: asyncio.Task[None] | None = None
+        self._cleanup_started = False
+
+    def __del__(self) -> None:
+        """Ensure cleanup task is stopped when middleware is destroyed."""
+        self._stop_cleanup_task()
+
+    def _get_env_int(self, env_var: str, default: int) -> int:
+        """
+        Get integer value from environment variable with validation.
+
+        Args:
+            env_var: Environment variable name
+            default: Default value if not set or invalid
+
+        Returns:
+            Integer value from environment or default
+        """
+        try:
+            value = os.getenv(env_var)
+            if value is None:
+                return default
+            parsed = int(value)
+            return parsed if parsed > 0 else default
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid value for {env_var}, using default {default}")
+            return default
 
     def _get_session_id(self, request: Request) -> str:
         """
@@ -173,6 +212,67 @@ class MCPInitializationMiddleware(BaseHTTPMiddleware):
         )
         user_agent = request.headers.get("user-agent", "unknown")
         return f"{client_ip}:{user_agent}"
+
+    def _add_initialized_session(self, session_id: str) -> None:
+        """
+        Add session with current timestamp for TTL tracking.
+
+        Args:
+            session_id: The session identifier to add
+        """
+        self._initialized_sessions[session_id] = time.time()
+
+    def _cleanup_expired_sessions(self) -> int:
+        """
+        Remove expired sessions based on TTL.
+
+        Returns:
+            Number of sessions removed
+        """
+        current_time = time.time()
+        expired_sessions = [
+            session_id
+            for session_id, timestamp in self._initialized_sessions.items()
+            if current_time - timestamp > self._session_ttl
+        ]
+
+        for session_id in expired_sessions:
+            del self._initialized_sessions[session_id]
+
+        if expired_sessions:
+            logger.debug(f"Cleaned up {len(expired_sessions)} expired sessions")
+
+        return len(expired_sessions)
+
+    def _start_cleanup_task(self) -> None:
+        """Start the background cleanup task if in async context."""
+        try:
+            if not self._cleanup_started and (
+                self._cleanup_task is None or self._cleanup_task.done()
+            ):
+                self._cleanup_task = asyncio.create_task(self._periodic_cleanup())
+                self._cleanup_started = True
+        except RuntimeError:
+            # No event loop running - will start later when needed
+            pass
+
+    def _stop_cleanup_task(self) -> None:
+        """Stop the background cleanup task."""
+        if self._cleanup_task and not self._cleanup_task.done():
+            self._cleanup_task.cancel()
+
+    async def _periodic_cleanup(self) -> None:
+        """Background task to periodically clean up expired sessions."""
+        while True:
+            try:
+                await asyncio.sleep(self._cleanup_interval)
+                self._cleanup_expired_sessions()
+            except asyncio.CancelledError:
+                logger.debug("Cleanup task cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Error in periodic cleanup: {e}")
+                # Continue running despite errors
 
     def _is_mcp_protocol_request(self, request: Request) -> bool:
         """
@@ -247,19 +347,32 @@ class MCPInitializationMiddleware(BaseHTTPMiddleware):
             data: The parsed request data
         """
         if data.get("method") == "notifications/initialized":
-            self._initialized_sessions.add(session_id)
+            self._add_initialized_session(session_id)
 
     def _is_session_initialized(self, session_id: str) -> bool:
         """
-        Check if a session has completed MCP initialization.
+        Check if a session has completed MCP initialization and is not expired.
 
         Args:
             session_id: The session identifier
 
         Returns:
-            True if session is initialized, False otherwise
+            True if session is initialized and not expired, False otherwise
         """
-        return session_id in self._initialized_sessions
+        if session_id not in self._initialized_sessions:
+            return False
+
+        # Check if session has expired (lazy cleanup)
+        current_time = time.time()
+        session_time = self._initialized_sessions[session_id]
+
+        if current_time - session_time > self._session_ttl:
+            # Session expired, remove it
+            del self._initialized_sessions[session_id]
+            logger.debug(f"Session {session_id} expired and removed")
+            return False
+
+        return True
 
     def _create_initialization_error(self) -> JSONResponse:
         """
@@ -294,6 +407,9 @@ class MCPInitializationMiddleware(BaseHTTPMiddleware):
         Returns:
             Response from next handler if initialized, error if not
         """
+        # Start cleanup task if not already started
+        self._start_cleanup_task()
+
         session_id = self._get_session_id(request)
 
         # Check if this might be an MCP protocol request
@@ -367,9 +483,9 @@ class MCPInitializationMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
 
-def create_mcp_initialization_middleware() -> Callable[
-    [ASGIApp], MCPInitializationMiddleware
-]:
+def create_mcp_initialization_middleware() -> (
+    Callable[[ASGIApp], MCPInitializationMiddleware]
+):
     """
     Factory function to create MCP initialization middleware.
 

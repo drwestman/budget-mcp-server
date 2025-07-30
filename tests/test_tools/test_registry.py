@@ -64,16 +64,25 @@ class TestToolRegistry:
 
         # Check for expected tool categories
         envelope_tools = [
-            "create_envelope", "list_envelopes", "get_envelope",
-            "update_envelope", "delete_envelope"
+            "create_envelope",
+            "list_envelopes",
+            "get_envelope",
+            "update_envelope",
+            "delete_envelope",
         ]
         transaction_tools = [
-            "create_transaction", "list_transactions", "get_transaction",
-            "update_transaction", "delete_transaction"
+            "create_transaction",
+            "list_transactions",
+            "get_transaction",
+            "update_transaction",
+            "delete_transaction",
         ]
         utility_tools = [
-            "get_envelope_balance", "get_budget_summary", "get_cloud_status",
-            "sync_to_cloud", "sync_from_cloud"
+            "get_envelope_balance",
+            "get_budget_summary",
+            "get_cloud_status",
+            "sync_to_cloud",
+            "sync_from_cloud",
         ]
 
         for tool in envelope_tools + transaction_tools + utility_tools:
@@ -114,7 +123,8 @@ class TestToolRegistry:
         # Mock the handler
         mock_handler = AsyncMock(return_value={"success": True})
         registry._handlers["create_envelope"] = (
-            mock_handler, registry.envelope_service
+            mock_handler,
+            registry.envelope_service,
         )
 
         arguments = {"name": "Test Envelope", "budget": 100.0}
@@ -129,7 +139,8 @@ class TestToolRegistry:
         # Mock the handler
         mock_handler = AsyncMock(return_value={"transaction_id": "123"})
         registry._handlers["create_transaction"] = (
-            mock_handler, registry.transaction_service
+            mock_handler,
+            registry.transaction_service,
         )
 
         arguments = {"amount": 50.0, "description": "Test transaction"}
@@ -144,7 +155,8 @@ class TestToolRegistry:
         # Mock the handler
         mock_handler = AsyncMock(return_value={"balance": 75.0})
         registry._handlers["get_envelope_balance"] = (
-            mock_handler, registry.envelope_service
+            mock_handler,
+            registry.envelope_service,
         )
 
         arguments = {"envelope_id": "env123"}
@@ -159,7 +171,7 @@ class TestToolRegistry:
         with pytest.raises(ValueError, match="Unknown tool: nonexistent_tool"):
             await registry.call_tool("nonexistent_tool", {})
 
-    @patch('app.tools.registry.get_all_tool_schemas')
+    @patch("app.tools.registry.get_all_tool_schemas")
     def test_register_all_tools_called(
         self, mock_get_schemas, mock_envelope_service, mock_transaction_service
     ):
@@ -167,14 +179,23 @@ class TestToolRegistry:
         # Create a comprehensive mock schema with all expected tools
         expected_tools = [
             # Envelope tools
-            "create_envelope", "list_envelopes", "get_envelope",
-            "update_envelope", "delete_envelope",
+            "create_envelope",
+            "list_envelopes",
+            "get_envelope",
+            "update_envelope",
+            "delete_envelope",
             # Transaction tools
-            "create_transaction", "list_transactions", "get_transaction",
-            "update_transaction", "delete_transaction",
+            "create_transaction",
+            "list_transactions",
+            "get_transaction",
+            "update_transaction",
+            "delete_transaction",
             # Utility tools
-            "get_envelope_balance", "get_budget_summary", "get_cloud_status",
-            "sync_to_cloud", "sync_from_cloud"
+            "get_envelope_balance",
+            "get_budget_summary",
+            "get_cloud_status",
+            "sync_to_cloud",
+            "sync_from_cloud",
         ]
 
         mock_schemas = {}
@@ -182,7 +203,7 @@ class TestToolRegistry:
             mock_schemas[tool_name] = {
                 "name": tool_name,
                 "description": f"Test description for {tool_name}",
-                "inputSchema": {"type": "object"}
+                "inputSchema": {"type": "object"},
             }
 
         mock_get_schemas.return_value = mock_schemas
@@ -213,9 +234,9 @@ class TestMCPToolAdapter:
         # Check that all returned items are MCP Tool objects
         for tool in mcp_tools:
             assert isinstance(tool, types.Tool)
-            assert hasattr(tool, 'name')
-            assert hasattr(tool, 'description')
-            assert hasattr(tool, 'inputSchema')
+            assert hasattr(tool, "name")
+            assert hasattr(tool, "description")
+            assert hasattr(tool, "inputSchema")
 
     @pytest.mark.asyncio
     async def test_handle_tool_call_dict_result(self, registry):
@@ -284,7 +305,7 @@ class TestFastMCPToolAdapter:
         test_schema = {
             "name": "test_tool",
             "description": "Test tool description",
-            "inputSchema": {"type": "object"}
+            "inputSchema": {"type": "object"},
         }
 
         adapter._register_single_tool(mock_mcp, "test_tool", test_schema)

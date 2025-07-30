@@ -2,8 +2,10 @@
 Tests for MCP initialization check middleware.
 """
 
+import asyncio
 import json
-from unittest.mock import AsyncMock, Mock
+import time
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi import Request, status
@@ -314,7 +316,7 @@ class TestMCPInitializationMiddleware:
         mock_request.client.host = "127.0.0.1"
         mock_request.headers = {"user-agent": "test-client"}
         session_id = middleware._get_session_id(mock_request)
-        middleware._initialized_sessions.add(session_id)
+        middleware._add_initialized_session(session_id)
 
         # Mock call_next to return a response
         mock_response = Mock()
@@ -415,3 +417,253 @@ class TestMCPInitializationMiddleware:
 
         await middleware.dispatch(tool_request, call_next)
         assert call_next.called
+
+
+class TestMCPInitializationMiddlewareMemoryManagement:
+    """Test suite for TTL-based session memory management."""
+
+    @pytest.fixture
+    def middleware_with_ttl(self) -> MCPInitializationMiddleware:
+        """Create middleware with custom TTL settings."""
+        mock_app = Mock()
+        middleware = MCPInitializationMiddleware(mock_app)
+        middleware._session_ttl = 2  # 2 seconds for testing
+        middleware._cleanup_interval = 1  # 1 second cleanup interval
+        return middleware
+
+    def test_session_ttl_initialization(self) -> None:
+        """Test that TTL settings are properly initialized."""
+        mock_app = Mock()
+        middleware = MCPInitializationMiddleware(mock_app)
+
+        # Default values should be set
+        assert hasattr(middleware, "_session_ttl")
+        assert hasattr(middleware, "_cleanup_interval")
+        assert isinstance(middleware._initialized_sessions, dict)
+
+    def test_add_initialized_session_with_timestamp(
+        self, middleware_with_ttl: MCPInitializationMiddleware
+    ) -> None:
+        """Test that sessions are added with current timestamp."""
+        session_id = "test-session"
+        current_time = time.time()
+
+        middleware_with_ttl._add_initialized_session(session_id)
+
+        assert session_id in middleware_with_ttl._initialized_sessions
+        stored_time = middleware_with_ttl._initialized_sessions[session_id]
+        assert abs(stored_time - current_time) < 1  # Within 1 second
+
+    def test_is_session_initialized_valid_session(
+        self, middleware_with_ttl: MCPInitializationMiddleware
+    ) -> None:
+        """Test session validation for non-expired sessions."""
+        session_id = "test-session"
+        middleware_with_ttl._add_initialized_session(session_id)
+
+        assert middleware_with_ttl._is_session_initialized(session_id) is True
+
+    def test_is_session_initialized_expired_session(
+        self, middleware_with_ttl: MCPInitializationMiddleware
+    ) -> None:
+        """Test session validation for expired sessions."""
+        session_id = "test-session"
+
+        # Add session with old timestamp
+        middleware_with_ttl._initialized_sessions[session_id] = (
+            time.time() - 10
+        )  # 10 seconds ago
+
+        # Should return False and remove the session
+        assert middleware_with_ttl._is_session_initialized(session_id) is False
+        assert session_id not in middleware_with_ttl._initialized_sessions
+
+    def test_is_session_initialized_nonexistent_session(
+        self, middleware_with_ttl: MCPInitializationMiddleware
+    ) -> None:
+        """Test session validation for non-existent sessions."""
+        assert middleware_with_ttl._is_session_initialized("nonexistent") is False
+
+    def test_cleanup_expired_sessions(
+        self, middleware_with_ttl: MCPInitializationMiddleware
+    ) -> None:
+        """Test manual cleanup of expired sessions."""
+        current_time = time.time()
+
+        # Add mix of expired and valid sessions
+        middleware_with_ttl._initialized_sessions.update(
+            {
+                "expired1": current_time - 10,  # Expired
+                "expired2": current_time - 5,  # Expired
+                "valid1": current_time - 1,  # Valid
+                "valid2": current_time,  # Valid
+            }
+        )
+
+        removed_count = middleware_with_ttl._cleanup_expired_sessions()
+
+        assert removed_count == 2
+        assert "expired1" not in middleware_with_ttl._initialized_sessions
+        assert "expired2" not in middleware_with_ttl._initialized_sessions
+        assert "valid1" in middleware_with_ttl._initialized_sessions
+        assert "valid2" in middleware_with_ttl._initialized_sessions
+
+    @pytest.mark.asyncio
+    async def test_background_cleanup_task_lifecycle(
+        self, middleware_with_ttl: MCPInitializationMiddleware
+    ) -> None:
+        """Test that background cleanup task starts and stops properly."""
+        # Start cleanup task
+        middleware_with_ttl._start_cleanup_task()
+
+        assert middleware_with_ttl._cleanup_task is not None
+        assert not middleware_with_ttl._cleanup_task.done()
+
+        # Stop cleanup task
+        middleware_with_ttl._stop_cleanup_task()
+
+        # Task should be cancelled or completed
+        await asyncio.sleep(0.1)  # Allow cancellation to process
+        assert middleware_with_ttl._cleanup_task.done()
+
+    @pytest.mark.asyncio
+    async def test_background_cleanup_removes_expired_sessions(
+        self, middleware_with_ttl: MCPInitializationMiddleware
+    ) -> None:
+        """Test that background cleanup actually removes expired sessions."""
+        # Add expired and valid sessions
+        current_time = time.time()
+        middleware_with_ttl._initialized_sessions.update(
+            {
+                "expired": current_time - 10,  # Expired
+                "valid": current_time,  # Valid
+            }
+        )
+
+        # Start cleanup task
+        middleware_with_ttl._start_cleanup_task()
+
+        # Wait for cleanup to run
+        await asyncio.sleep(1.5)  # Wait longer than cleanup interval
+
+        # Expired session should be removed
+        assert "expired" not in middleware_with_ttl._initialized_sessions
+        assert "valid" in middleware_with_ttl._initialized_sessions
+
+        # Cleanup
+        middleware_with_ttl._stop_cleanup_task()
+
+    @pytest.mark.asyncio
+    async def test_memory_bounded_under_load(
+        self, middleware_with_ttl: MCPInitializationMiddleware
+    ) -> None:
+        """Test that memory remains bounded under high session load."""
+        # Add many sessions rapidly
+        for i in range(1000):
+            session_id = f"session_{i}"
+            middleware_with_ttl._add_initialized_session(session_id)
+
+        # Verify all sessions were added
+        assert len(middleware_with_ttl._initialized_sessions) == 1000
+
+        # Wait for sessions to expire
+        await asyncio.sleep(3)  # Wait longer than TTL
+
+        # Run cleanup
+        removed_count = middleware_with_ttl._cleanup_expired_sessions()
+
+        # All sessions should be expired and removed
+        assert removed_count == 1000
+        assert len(middleware_with_ttl._initialized_sessions) == 0
+
+    def test_environment_variable_configuration(self) -> None:
+        """Test that TTL can be configured via environment variables."""
+        with patch.dict(
+            "os.environ", {"MCP_SESSION_TTL": "7200", "MCP_CLEANUP_INTERVAL": "600"}
+        ):
+            mock_app = Mock()
+            middleware = MCPInitializationMiddleware(mock_app)
+
+            assert middleware._session_ttl == 7200  # 2 hours
+            assert middleware._cleanup_interval == 600  # 10 minutes
+
+    def test_environment_variable_defaults(self) -> None:
+        """Test default values when environment variables are not set."""
+        with patch.dict("os.environ", {}, clear=True):
+            mock_app = Mock()
+            middleware = MCPInitializationMiddleware(mock_app)
+
+            # Should use defaults (these will be defined in implementation)
+            assert middleware._session_ttl == 3600  # 1 hour
+            assert middleware._cleanup_interval == 300  # 5 minutes
+
+    def test_session_ttl_with_invalid_environment_variables(self) -> None:
+        """Test handling of invalid environment variable values."""
+        with patch.dict(
+            "os.environ", {"MCP_SESSION_TTL": "invalid", "MCP_CLEANUP_INTERVAL": "-100"}
+        ):
+            mock_app = Mock()
+            middleware = MCPInitializationMiddleware(mock_app)
+
+            # Should fall back to defaults
+            assert middleware._session_ttl == 3600
+            assert middleware._cleanup_interval == 300
+
+    @pytest.mark.asyncio
+    async def test_cleanup_task_error_handling(
+        self, middleware_with_ttl: MCPInitializationMiddleware
+    ) -> None:
+        """Test that cleanup task handles errors gracefully."""
+        # Mock cleanup method to raise exception
+        original_cleanup = middleware_with_ttl._cleanup_expired_sessions
+
+        def failing_cleanup():
+            if len(middleware_with_ttl._initialized_sessions) > 0:
+                raise Exception("Simulated cleanup error")
+            return original_cleanup()
+
+        middleware_with_ttl._cleanup_expired_sessions = failing_cleanup
+
+        # Add a session and start cleanup
+        middleware_with_ttl._add_initialized_session("test-session")
+        middleware_with_ttl._start_cleanup_task()
+
+        # Wait and verify task continues running despite error
+        await asyncio.sleep(1.5)
+
+        assert not middleware_with_ttl._cleanup_task.done()
+
+        # Cleanup
+        middleware_with_ttl._stop_cleanup_task()
+
+    @pytest.mark.asyncio
+    async def test_dispatch_with_ttl_session_management(
+        self, middleware_with_ttl: MCPInitializationMiddleware
+    ) -> None:
+        """Test dispatch behavior with TTL-based session management."""
+        # Create mock request
+        request = Mock(spec=Request)
+        request.method = "POST"
+        request.headers = {
+            "content-type": "application/json",
+            "user-agent": "test-client",
+        }
+        request.client = Mock()
+        request.client.host = "127.0.0.1"
+
+        body_data = {"jsonrpc": "2.0", "method": "notifications/initialized"}
+        request.body = AsyncMock(return_value=json.dumps(body_data).encode())
+
+        call_next = AsyncMock(return_value=Mock())
+
+        # First request should process initialization
+        await middleware_with_ttl.dispatch(request, call_next)
+        session_id = middleware_with_ttl._get_session_id(request)
+
+        assert middleware_with_ttl._is_session_initialized(session_id)
+
+        # Wait for session to expire
+        await asyncio.sleep(3)
+
+        # Session should now be expired
+        assert not middleware_with_ttl._is_session_initialized(session_id)

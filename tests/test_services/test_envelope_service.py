@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -109,13 +110,13 @@ def test_create_envelope_duplicate_category(
     ],
 )
 def test_create_envelope_invalid_input(
-    envelope_service,
-    mock_db,
-    category,
-    budgeted_amount,
-    starting_balance,
-    expected_message,
-):
+    envelope_service: EnvelopeService,
+    mock_db: MagicMock,
+    category: str,
+    budgeted_amount: Any,
+    starting_balance: Any,
+    expected_message: str,
+) -> None:
     with pytest.raises(ValueError) as excinfo:
         envelope_service.create_envelope(
             category, budgeted_amount, starting_balance, "Test description"
@@ -251,7 +252,13 @@ def test_update_envelope_success(
         "current_balance"
     ]
 
-    updated_envelope = envelope_service.update_envelope(envelope_id, **update_data)
+    updated_envelope = envelope_service.update_envelope(
+        envelope_id,
+        category=str(update_data["category"]),
+        budgeted_amount=float(update_data["budgeted_amount"]),
+        starting_balance=float(update_data["starting_balance"]),
+        description=str(update_data["description"]),
+    )
 
     mock_db.get_envelope_by_category.assert_called_once_with(update_data["category"])
     mock_db.update_envelope.assert_called_once_with(envelope_id, **update_data)
@@ -287,7 +294,9 @@ def test_update_envelope_partial_fields(
         "current_balance"
     ]
 
-    updated_envelope = envelope_service.update_envelope(envelope_id, **update_data)
+    updated_envelope = envelope_service.update_envelope(
+        envelope_id, budgeted_amount=float(update_data["budgeted_amount"])
+    )
 
     mock_db.get_envelope_by_category.assert_not_called()  # Category not in update_data
     mock_db.update_envelope.assert_called_once_with(
