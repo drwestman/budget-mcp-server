@@ -120,6 +120,9 @@ class DevelopmentConfig(Config):
         self.DEBUG = True
         self.TESTING = False
         self.RESET_DB_ON_START = True
+        # Override to use local mode for development if no MOTHERDUCK_TOKEN is provided
+        if not os.getenv("MOTHERDUCK_TOKEN"):
+            self.DATABASE_MODE = "local"
 
 
 class ProductionConfig(Config):

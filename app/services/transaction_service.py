@@ -93,7 +93,8 @@ class TransactionService:
         )
         if not updated:
             raise ValueError(
-                f"Transaction with ID {transaction_id} not found or no valid fields to update."
+                f"Transaction with ID {transaction_id} not found or no valid "
+                f"fields to update."
             )
         return self.get_transaction(transaction_id)
 

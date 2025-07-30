@@ -14,7 +14,9 @@ class TestMCPTools:
     @pytest.fixture
     def server(self) -> FastMCP:
         """Create a test FastMCP server instance."""
-        return create_fastmcp_server("testing", enable_auth=False)
+        return create_fastmcp_server(
+            "testing", enable_auth=False, enable_init_check=False
+        )
 
     @pytest.fixture
     def event_loop(self) -> Generator[asyncio.AbstractEventLoop, None, None]:
@@ -49,7 +51,7 @@ class TestMCPTools:
     async def test_list_envelopes_tool(self, server: FastMCP) -> None:
         """Test the list_envelopes MCP tool via FastMCP API."""
         tools = await server.get_tools()
-        
+
         # Create a test envelope first
         create_envelope_tool = tools["create_envelope"]
         await create_envelope_tool.fn(
@@ -62,7 +64,7 @@ class TestMCPTools:
         # Test listing envelopes
         list_envelopes_tool = tools["list_envelopes"]
         result = await list_envelopes_tool.fn()
-        
+
         # Parse the JSON response
         envelopes_data = json.loads(result)
         assert isinstance(envelopes_data, list)
@@ -79,7 +81,7 @@ class TestMCPTools:
     async def test_create_transaction_tool(self, server: FastMCP) -> None:
         """Test the create_transaction MCP tool via FastMCP API."""
         tools = await server.get_tools()
-        
+
         # Create an envelope first
         create_envelope_tool = tools["create_envelope"]
         envelope_result = await create_envelope_tool.fn(
@@ -100,7 +102,7 @@ class TestMCPTools:
             date="2024-01-15",
             type="expense",
         )
-        
+
         # Parse the JSON response
         transaction_data = json.loads(result)
         assert transaction_data["envelope_id"] == envelope_id
@@ -114,7 +116,7 @@ class TestMCPTools:
     async def test_get_budget_summary_tool(self, server: FastMCP) -> None:
         """Test the get_budget_summary MCP tool via FastMCP API."""
         tools = await server.get_tools()
-        
+
         # Create test data
         create_envelope_tool = tools["create_envelope"]
         envelope_result = await create_envelope_tool.fn(
@@ -139,7 +141,7 @@ class TestMCPTools:
         # Test getting budget summary
         get_budget_summary_tool = tools["get_budget_summary"]
         result = await get_budget_summary_tool.fn()
-        
+
         # Parse the JSON response
         summary_data = json.loads(result)
         assert "total_envelopes" in summary_data
@@ -153,7 +155,7 @@ class TestMCPTools:
         """Test error handling in MCP tools via FastMCP API."""
         tools = await server.get_tools()
         create_envelope_tool = tools["create_envelope"]
-        
+
         # Test with empty category (should cause error)
         result = await create_envelope_tool.fn(
             category="",  # Empty category should cause error
@@ -161,7 +163,7 @@ class TestMCPTools:
             starting_balance=50.0,
             description="Test",
         )
-        
+
         # Should return an error message
         assert "Error:" in result
 
@@ -192,11 +194,10 @@ class TestMCPTools:
         schema = list_transactions_tool.parameters
         assert schema["type"] == "object"
         assert "envelope_id" in schema["properties"]
-        # Optional parameters use anyOf with integer and null
+        # FastMCP generates nullable integers with type + default pattern
         envelope_id_schema = schema["properties"]["envelope_id"]
-        assert "anyOf" in envelope_id_schema
-        assert {"type": "integer"} in envelope_id_schema["anyOf"]
-        assert {"type": "null"} in envelope_id_schema["anyOf"]
+        assert envelope_id_schema["type"] == "integer"
+        assert envelope_id_schema["default"] is None
         assert "envelope_id" not in schema.get("required", [])
 
         # Test schema for get_envelope

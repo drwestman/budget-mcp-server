@@ -5,6 +5,7 @@ SSL Certificate Generation Script for Budget MCP Server
 Generates self-signed SSL certificates for development use.
 Creates both the private key and certificate files needed for HTTPS.
 """
+
 import subprocess
 import sys
 from pathlib import Path
