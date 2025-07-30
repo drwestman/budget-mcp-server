@@ -259,7 +259,14 @@ class MCPInitializationMiddleware(BaseHTTPMiddleware):
     def _stop_cleanup_task(self) -> None:
         """Stop the background cleanup task."""
         if self._cleanup_task and not self._cleanup_task.done():
-            self._cleanup_task.cancel()
+            try:
+                # Check if event loop is still running before cancellation
+                loop = asyncio.get_running_loop()
+                if loop and not loop.is_closed():
+                    self._cleanup_task.cancel()
+            except RuntimeError:
+                # No event loop running - task will be cleaned up automatically
+                pass
 
     async def _periodic_cleanup(self) -> None:
         """Background task to periodically clean up expired sessions."""
@@ -333,7 +340,7 @@ class MCPInitializationMiddleware(BaseHTTPMiddleware):
 
             return method in allowed_methods, data
 
-        except (json.JSONDecodeError, UnicodeDecodeError, KeyError):
+        except (json.JSONDecodeError, UnicodeDecodeError):
             return False, None
 
     def _handle_initialized_notification(

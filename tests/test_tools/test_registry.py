@@ -12,10 +12,8 @@ import pytest
 from app.services.envelope_service import EnvelopeService
 from app.services.transaction_service import TransactionService
 from app.tools.registry import (
-    FastMCPToolAdapter,
     MCPToolAdapter,
     ToolRegistry,
-    create_fastmcp_adapter,
     create_mcp_adapter,
     create_tool_registry,
 )
@@ -273,48 +271,6 @@ class TestMCPToolAdapter:
         assert result[0].text == mock_result
 
 
-class TestFastMCPToolAdapter:
-    """Test the FastMCPToolAdapter class."""
-
-    def test_initialization(self, registry):
-        """Test FastMCPToolAdapter initialization."""
-        adapter = FastMCPToolAdapter(registry)
-        assert adapter.registry == registry
-
-    def test_register_tools_with_fastmcp(self, registry):
-        """Test registering tools with FastMCP."""
-        adapter = FastMCPToolAdapter(registry)
-        mock_mcp = MagicMock()
-        mock_tool_decorator = MagicMock()
-        mock_mcp.tool.return_value = mock_tool_decorator
-
-        adapter.register_tools_with_fastmcp(mock_mcp)
-
-        # Verify that mcp.tool was called for each registered tool
-        expected_calls = len(registry.get_tool_list())
-        assert mock_mcp.tool.call_count == expected_calls
-
-    @pytest.mark.asyncio
-    async def test_register_single_tool(self, registry):
-        """Test registering a single tool with FastMCP."""
-        adapter = FastMCPToolAdapter(registry)
-        mock_mcp = MagicMock()
-        mock_tool_decorator = MagicMock()
-        mock_mcp.tool.return_value = mock_tool_decorator
-
-        test_schema = {
-            "name": "test_tool",
-            "description": "Test tool description",
-            "inputSchema": {"type": "object"},
-        }
-
-        adapter._register_single_tool(mock_mcp, "test_tool", test_schema)
-
-        # Verify the tool was registered with correct description
-        mock_mcp.tool.assert_called_once_with(description=test_schema["description"])
-        mock_tool_decorator.assert_called_once()
-
-
 class TestFactoryFunctions:
     """Test the factory functions."""
 
@@ -335,9 +291,3 @@ class TestFactoryFunctions:
         assert isinstance(adapter, MCPToolAdapter)
         assert adapter.registry == registry
 
-    def test_create_fastmcp_adapter(self, registry):
-        """Test create_fastmcp_adapter factory function."""
-        adapter = create_fastmcp_adapter(registry)
-
-        assert isinstance(adapter, FastMCPToolAdapter)
-        assert adapter.registry == registry

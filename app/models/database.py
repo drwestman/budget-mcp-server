@@ -299,8 +299,10 @@ class Database:
 
         try:
             result = self.conn.execute(
-                "SELECT id, category, budgeted_amount, starting_balance, "
-                "description FROM envelopes WHERE id = ?;",
+                (
+                    "SELECT id, category, budgeted_amount, starting_balance, "
+                    "description FROM envelopes WHERE id = ?;"
+                ),
                 (envelope_id,),
             ).fetchone()
             if result:

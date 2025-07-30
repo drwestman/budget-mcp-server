@@ -9,7 +9,6 @@ from collections.abc import Callable
 from typing import Any
 
 import mcp.types as types
-from fastmcp import FastMCP
 
 from app.services.envelope_service import EnvelopeService
 from app.services.transaction_service import TransactionService
@@ -143,37 +142,6 @@ class MCPToolAdapter:
         return [types.TextContent(type="text", text=text)]
 
 
-class FastMCPToolAdapter:
-    """Adapter for FastMCP tools."""
-
-    def __init__(self, registry: ToolRegistry):
-        self.registry = registry
-
-    def register_tools_with_fastmcp(self, mcp: FastMCP) -> None:
-        """Register all tools with FastMCP server."""
-
-        for tool_name, schema in self.registry.get_all_tool_schemas().items():
-            self._register_single_tool(mcp, tool_name, schema)
-
-    def _register_single_tool(
-        self, mcp: FastMCP, tool_name: str, schema: dict[str, Any]
-    ) -> None:
-        """Register a single tool with FastMCP."""
-
-        async def tool_handler(**kwargs: Any) -> str:
-            """Generic tool handler for FastMCP."""
-            result = await self.registry.call_tool(tool_name, kwargs)
-
-            if isinstance(result, dict | list):
-                return json.dumps(result, indent=2)
-            return str(result)
-
-        # Register the tool with FastMCP using the correct API
-        mcp.tool(
-            description=schema["description"],
-        )(tool_handler)
-
-
 def create_tool_registry(
     envelope_service: EnvelopeService,
     transaction_service: TransactionService,
@@ -187,6 +155,3 @@ def create_mcp_adapter(registry: ToolRegistry) -> MCPToolAdapter:
     return MCPToolAdapter(registry)
 
 
-def create_fastmcp_adapter(registry: ToolRegistry) -> FastMCPToolAdapter:
-    """Factory function to create FastMCP adapter."""
-    return FastMCPToolAdapter(registry)
