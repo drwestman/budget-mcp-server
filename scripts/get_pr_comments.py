@@ -328,7 +328,8 @@ def main() -> None:
     parser.add_argument("--repo", help="GitHub repository name")
     parser.add_argument("--pr_number", type=int, help="Pull Request number")
     parser.add_argument(
-        "--resolution-filter", "-r",
+        "--resolution-filter",
+        "-r",
         nargs="?",
         const="unresolved",
         choices=["resolved", "unresolved", "r", "u"],

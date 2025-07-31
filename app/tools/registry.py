@@ -153,5 +153,3 @@ def create_tool_registry(
 def create_mcp_adapter(registry: ToolRegistry) -> MCPToolAdapter:
     """Factory function to create MCP adapter."""
     return MCPToolAdapter(registry)
-
-

@@ -290,4 +290,3 @@ class TestFactoryFunctions:
 
         assert isinstance(adapter, MCPToolAdapter)
         assert adapter.registry == registry
-

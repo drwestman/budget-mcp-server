@@ -7,7 +7,7 @@ class Config:
 
     def __init__(self) -> None:
         """Initialize configuration instance with environment variables."""
-        self.DATABASE_FILE = os.getenv("DATABASE_FILE", "budget_app.duckdb")
+        self.DATABASE_FILE = os.getenv("DATABASE_FILE", "data/budget_app.duckdb")
         self.HTTPS_ENABLED = os.getenv("HTTPS_ENABLED", "false").lower() == "true"
         self.SSL_CERT_FILE = os.getenv("SSL_CERT_FILE", "certs/server.crt")
         self.SSL_KEY_FILE = os.getenv("SSL_KEY_FILE", "certs/server.key")
@@ -22,7 +22,7 @@ class Config:
     @staticmethod
     def ensure_data_directory() -> None:
         """Ensure the data directory exists for database file."""
-        db_file = os.getenv("DATABASE_FILE", "budget_app.duckdb")
+        db_file = os.getenv("DATABASE_FILE", "data/budget_app.duckdb")
         if db_file != ":memory:":
             db_dir = os.path.dirname(db_file)
             if db_dir and not os.path.exists(db_dir):

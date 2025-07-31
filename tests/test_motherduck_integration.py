@@ -308,10 +308,11 @@ class TestDatabaseCloudOperations:
         with pytest.raises(ValueError, match="not applicable in cloud mode"):
             self.db.sync_from_cloud()
 
+    @patch("duckdb.connect")
     @patch("app.models.database.Database.get_all_envelopes")
     @patch("app.models.database.Database.get_all_transactions")
     def test_sync_to_cloud_success(
-        self, mock_get_transactions: Mock, mock_get_envelopes: Mock
+        self, mock_get_transactions: Mock, mock_get_envelopes: Mock, mock_duckdb_connect: Mock
     ) -> None:
         """Test successful sync_to_cloud operation."""
         # Setup mocks
@@ -338,11 +339,16 @@ class TestDatabaseCloudOperations:
         # Mock cloud connection
         self.db.mode = "hybrid"
         self.db.is_cloud_connected = True
-        self.db.motherduck_config = {"database": "test_db"}
+        self.db.motherduck_config = {"database": "test_db", "token": "test_token"}
+        self.db.connection_info = {"catalog_attached": True}
 
         # Mock the database connection execute method
         mock_conn = Mock()
         self.db.conn = mock_conn
+        
+        # Mock the cloud connection used in sync_to_cloud
+        mock_cloud_conn = Mock()
+        mock_duckdb_connect.return_value = mock_cloud_conn
 
         result = self.db.sync_to_cloud()
 
