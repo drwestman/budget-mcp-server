@@ -131,46 +131,51 @@ class TestMotherDuckRealIntegration:
                 motherduck_config=self.motherduck_config,
             )
 
-            # Test envelope creation
-            test_envelope_id = db.insert_envelope(
-                category="TEST_INTEGRATION_ENVELOPE",
-                budgeted_amount=100.0,
-                starting_balance=50.0,
-                description="Integration test envelope - should be cleaned up",
-            )
+            test_envelope_id = None
+            test_transaction_id = None
+            try:
+                # Test envelope creation
+                test_envelope_id = db.insert_envelope(
+                    category="TEST_INTEGRATION_ENVELOPE",
+                    budgeted_amount=100.0,
+                    starting_balance=50.0,
+                    description="Integration test envelope - should be cleaned up",
+                )
 
-            assert test_envelope_id is not None
+                assert test_envelope_id is not None
 
-            # Test envelope retrieval
-            envelope = db.get_envelope_by_id(test_envelope_id)
-            assert envelope is not None
-            assert envelope["category"] == "TEST_INTEGRATION_ENVELOPE"
-            assert envelope["budgeted_amount"] == 100.0
+                # Test envelope retrieval
+                envelope = db.get_envelope_by_id(test_envelope_id)
+                assert envelope is not None
+                assert envelope["category"] == "TEST_INTEGRATION_ENVELOPE"
+                assert envelope["budgeted_amount"] == 100.0
 
-            # Test transaction creation
-            test_transaction_id = db.insert_transaction(
-                envelope_id=test_envelope_id,
-                amount=25.0,
-                description="Integration test transaction",
-                date=date.today(),
-                type="expense",
-            )
+                # Test transaction creation
+                test_transaction_id = db.insert_transaction(
+                    envelope_id=test_envelope_id,
+                    amount=25.0,
+                    description="Integration test transaction",
+                    date=date.today(),
+                    type="expense",
+                )
 
-            assert test_transaction_id is not None
+                assert test_transaction_id is not None
 
-            # Test transaction retrieval
-            transaction = db.get_transaction_by_id(test_transaction_id)
-            assert transaction is not None
-            assert transaction["envelope_id"] == test_envelope_id
-            assert transaction["amount"] == 25.0
+                # Test transaction retrieval
+                transaction = db.get_transaction_by_id(test_transaction_id)
+                assert transaction is not None
+                assert transaction["envelope_id"] == test_envelope_id
+                assert transaction["amount"] == 25.0
 
-            # Test balance calculation
-            balance = db.get_envelope_current_balance(test_envelope_id)
-            assert balance == 25.0  # 50.0 starting - 25.0 expense
-
-            # Cleanup: Delete test data
-            db.delete_transaction(test_transaction_id)
-            db.delete_envelope(test_envelope_id)
+                # Test balance calculation
+                balance = db.get_envelope_current_balance(test_envelope_id)
+                assert balance == 25.0  # 50.0 starting - 25.0 expense
+            finally:
+                # Cleanup: Delete test data
+                if test_transaction_id:
+                    db.delete_transaction(test_transaction_id)
+                if test_envelope_id:
+                    db.delete_envelope(test_envelope_id)
 
             db.close()
 

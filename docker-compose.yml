@@ -2,7 +2,7 @@ services:
   budget-mcp-server:
     build: .
     image: budget-mcp-server:latest
-    container_name: budget-mcp-server
+    container_name: budget-mcp-server-stdio
     profiles:
       - prod
     command: >
@@ -37,7 +37,7 @@ services:
   budget-mcp-server-http:
     build: .
     image: budget-mcp-server:latest
-    container_name: budget-mcp-server
+    container_name: budget-mcp-server-http
     profiles:
       - prod-http
     command: >

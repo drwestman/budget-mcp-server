@@ -159,7 +159,9 @@ class Database:
             duckdb.Error: If MotherDuck configuration fails
         """
         if self.conn is None:
-            raise ValueError("Database connection not available for MotherDuck configuration")
+            raise ValueError(
+                "Database connection not available for MotherDuck configuration"
+            )
 
         try:
             logger.info(f"Configuring MotherDuck access for database '{database}'...")
@@ -176,7 +178,9 @@ class Database:
             # The token validation during SET is sufficient to verify connectivity
             pass
 
-            logger.info(f"MotherDuck access configured successfully for database '{database}'")
+            logger.info(
+                f"MotherDuck access configured successfully for database '{database}'"
+            )
 
         except duckdb.Error as e:
             logger.error(f"Failed to configure MotherDuck access: {e}")
@@ -244,7 +248,7 @@ class Database:
                         f"and catalog attached for hybrid operations"
                     )
 
-                except Exception as e:
+                except duckdb.Error as e:
                     logger.warning(f"MotherDuck not available in hybrid mode: {e}")
                     logger.info("Continuing with local-only connection")
                     self.is_cloud_connected = False
@@ -772,114 +776,117 @@ class Database:
             token = self.motherduck_config.get("token")
 
             # Create direct MotherDuck connection for sync operations
-            cloud_conn = duckdb.connect(f'md:{cloud_database}?motherduck_token={token}')
-
-            # Sync envelopes
+            cloud_conn = duckdb.connect(f"md:{cloud_database}?motherduck_token={token}")
             try:
-                envelopes = self.get_all_envelopes()
-                if envelopes:
-                    # Create envelopes table in cloud if not exists
-                    cloud_conn.execute(
-                        """
-                        CREATE TABLE IF NOT EXISTS envelopes (
-                            id INTEGER PRIMARY KEY,
-                            category VARCHAR NOT NULL UNIQUE,
-                            budgeted_amount DOUBLE NOT NULL,
-                            starting_balance DOUBLE NOT NULL,
-                            description VARCHAR
-                        )
-                    """
-                    )
-
-                    # Insert or replace envelopes in cloud
-                    for envelope in envelopes:
+                # Sync envelopes
+                try:
+                    envelopes = self.get_all_envelopes()
+                    if envelopes:
+                        # Create envelopes table in cloud if not exists
                         cloud_conn.execute(
                             """
-                            INSERT INTO envelopes
-                            (id, category, budgeted_amount, starting_balance,
-                             description)
-                            VALUES (?, ?, ?, ?, ?)
-                            ON CONFLICT (id) DO UPDATE SET
-                                category = EXCLUDED.category,
-                                budgeted_amount = EXCLUDED.budgeted_amount,
-                                starting_balance = EXCLUDED.starting_balance,
-                                description = EXCLUDED.description
-                        """,
-                            (
-                                envelope["id"],
-                                envelope["category"],
-                                envelope["budgeted_amount"],
-                                envelope["starting_balance"],
-                                envelope["description"],
-                            ),
-                        )
-                        results["envelopes_synced"] = (
-                            cast(int, results["envelopes_synced"]) + 1
-                        )
-
-                logger.info(f"Synced {results['envelopes_synced']} envelopes to cloud")
-
-            except Exception as e:
-                error_msg = f"Error syncing envelopes: {e}"
-                logger.error(error_msg)
-                cast(list[str], results["errors"]).append(error_msg)
-
-            # Sync transactions
-            try:
-                transactions = self.get_all_transactions()
-                if transactions:
-                    # Create transactions table in cloud if not exists
-                    cloud_conn.execute(
+                            CREATE TABLE IF NOT EXISTS envelopes (
+                                id INTEGER PRIMARY KEY,
+                                category VARCHAR NOT NULL UNIQUE,
+                                budgeted_amount DOUBLE NOT NULL,
+                                starting_balance DOUBLE NOT NULL,
+                                description VARCHAR
+                            )
                         """
-                        CREATE TABLE IF NOT EXISTS transactions (
-                            id INTEGER PRIMARY KEY,
-                            envelope_id INTEGER NOT NULL,
-                            amount DOUBLE NOT NULL,
-                            description VARCHAR,
-                            date DATE NOT NULL,
-                            type VARCHAR NOT NULL
                         )
-                    """
+
+                        # Insert or replace envelopes in cloud
+                        for envelope in envelopes:
+                            cloud_conn.execute(
+                                """
+                                INSERT INTO envelopes
+                                (id, category, budgeted_amount, starting_balance,
+                                 description)
+                                VALUES (?, ?, ?, ?, ?)
+                                ON CONFLICT (id) DO UPDATE SET
+                                    category = EXCLUDED.category,
+                                    budgeted_amount = EXCLUDED.budgeted_amount,
+                                    starting_balance = EXCLUDED.starting_balance,
+                                    description = EXCLUDED.description
+                            """,
+                                (
+                                    envelope["id"],
+                                    envelope["category"],
+                                    envelope["budgeted_amount"],
+                                    envelope["starting_balance"],
+                                    envelope["description"],
+                                ),
+                            )
+                            results["envelopes_synced"] = (
+                                cast(int, results["envelopes_synced"]) + 1
+                            )
+
+                    logger.info(
+                        f"Synced {results['envelopes_synced']} envelopes to cloud"
                     )
 
-                    # Insert or replace transactions in cloud
-                    for transaction in transactions:
+                except Exception as e:
+                    error_msg = f"Error syncing envelopes: {e}"
+                    logger.error(error_msg)
+                    cast(list[str], results["errors"]).append(error_msg)
+
+                # Sync transactions
+                try:
+                    transactions = self.get_all_transactions()
+                    if transactions:
+                        # Create transactions table in cloud if not exists
                         cloud_conn.execute(
                             """
-                            INSERT INTO transactions
-                            (id, envelope_id, amount, description, date, type)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                            ON CONFLICT (id) DO UPDATE SET
-                                envelope_id = EXCLUDED.envelope_id,
-                                amount = EXCLUDED.amount,
-                                description = EXCLUDED.description,
-                                date = EXCLUDED.date,
-                                type = EXCLUDED.type
-                        """,
-                            (
-                                transaction["id"],
-                                transaction["envelope_id"],
-                                transaction["amount"],
-                                transaction["description"],
-                                transaction["date"],
-                                transaction["type"],
-                            ),
-                        )
-                        results["transactions_synced"] = (
-                            cast(int, results["transactions_synced"]) + 1
+                            CREATE TABLE IF NOT EXISTS transactions (
+                                id INTEGER PRIMARY KEY,
+                                envelope_id INTEGER NOT NULL,
+                                amount DOUBLE NOT NULL,
+                                description VARCHAR,
+                                date DATE NOT NULL,
+                                type VARCHAR NOT NULL
+                            )
+                        """
                         )
 
-                logger.info(
-                    f"Synced {results['transactions_synced']} transactions to cloud"
-                )
+                        # Insert or replace transactions in cloud
+                        for transaction in transactions:
+                            cloud_conn.execute(
+                                """
+                                INSERT INTO transactions
+                                (id, envelope_id, amount, description, date, type)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                                ON CONFLICT (id) DO UPDATE SET
+                                    envelope_id = EXCLUDED.envelope_id,
+                                    amount = EXCLUDED.amount,
+                                    description = EXCLUDED.description,
+                                    date = EXCLUDED.date,
+                                    type = EXCLUDED.type
+                            """,
+                                (
+                                    transaction["id"],
+                                    transaction["envelope_id"],
+                                    transaction["amount"],
+                                    transaction["description"],
+                                    transaction["date"],
+                                    transaction["type"],
+                                ),
+                            )
+                            results["transactions_synced"] = (
+                                cast(int, results["transactions_synced"]) + 1
+                            )
 
-            except Exception as e:
-                error_msg = f"Error syncing transactions: {e}"
-                logger.error(error_msg)
-                cast(list[str], results["errors"]).append(error_msg)
+                    logger.info(
+                        f"Synced {results['transactions_synced']} transactions to cloud"
+                    )
 
-            cloud_conn.commit()
-            cloud_conn.close()
+                except Exception as e:
+                    error_msg = f"Error syncing transactions: {e}"
+                    logger.error(error_msg)
+                    cast(list[str], results["errors"]).append(error_msg)
+
+                cloud_conn.commit()
+            finally:
+                cloud_conn.close()
             logger.info("Successfully completed sync to MotherDuck cloud")
 
             return results
@@ -922,85 +929,86 @@ class Database:
             token = self.motherduck_config.get("token")
 
             # Create direct MotherDuck connection for sync operations
-            cloud_conn = duckdb.connect(f'md:{cloud_database}?motherduck_token={token}')
-
-            # Sync envelopes from cloud
+            cloud_conn = duckdb.connect(f"md:{cloud_database}?motherduck_token={token}")
             try:
-                cloud_envelopes = cloud_conn.execute(
-                    """
-                    SELECT id, category, budgeted_amount, starting_balance, description
-                    FROM envelopes
-                """
-                ).fetchall()
-
-                for envelope_row in cloud_envelopes:
-                    # Insert or replace in local database
-                    self.conn.execute(
+                # Sync envelopes from cloud
+                try:
+                    cloud_envelopes = cloud_conn.execute(
                         """
-                        INSERT INTO main.envelopes
-                        (id, category, budgeted_amount, starting_balance, description)
-                        VALUES (?, ?, ?, ?, ?)
-                        ON CONFLICT (id) DO UPDATE SET
-                            category = EXCLUDED.category,
-                            budgeted_amount = EXCLUDED.budgeted_amount,
-                            starting_balance = EXCLUDED.starting_balance,
-                            description = EXCLUDED.description
-                    """,
-                        envelope_row,
-                    )
-                    results["envelopes_synced"] = (
-                        cast(int, results["envelopes_synced"]) + 1
-                    )
-
-                logger.info(
-                    f"Synced {results['envelopes_synced']} envelopes from cloud"
-                )
-
-            except Exception as e:
-                error_msg = f"Error syncing envelopes from cloud: {e}"
-                logger.error(error_msg)
-                cast(list[str], results["errors"]).append(error_msg)
-
-            # Sync transactions from cloud
-            try:
-                cloud_transactions = cloud_conn.execute(
+                        SELECT id, category, budgeted_amount, starting_balance, description
+                        FROM envelopes
                     """
-                    SELECT id, envelope_id, amount, description, date, type
-                    FROM transactions
-                """
-                ).fetchall()
+                    ).fetchall()
 
-                for transaction_row in cloud_transactions:
-                    # Insert or replace in local database
-                    self.conn.execute(
+                    for envelope_row in cloud_envelopes:
+                        # Insert or replace in local database
+                        self.conn.execute(
+                            """
+                            INSERT INTO main.envelopes
+                            (id, category, budgeted_amount, starting_balance, description)
+                            VALUES (?, ?, ?, ?, ?)
+                            ON CONFLICT (id) DO UPDATE SET
+                                category = EXCLUDED.category,
+                                budgeted_amount = EXCLUDED.budgeted_amount,
+                                starting_balance = EXCLUDED.starting_balance,
+                                description = EXCLUDED.description
+                        """,
+                            envelope_row,
+                        )
+                        results["envelopes_synced"] = (
+                            cast(int, results["envelopes_synced"]) + 1
+                        )
+
+                    logger.info(
+                        f"Synced {results['envelopes_synced']} envelopes from cloud"
+                    )
+
+                except Exception as e:
+                    error_msg = f"Error syncing envelopes from cloud: {e}"
+                    logger.error(error_msg)
+                    cast(list[str], results["errors"]).append(error_msg)
+
+                # Sync transactions from cloud
+                try:
+                    cloud_transactions = cloud_conn.execute(
                         """
-                        INSERT INTO main.transactions
-                        (id, envelope_id, amount, description, date, type)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                        ON CONFLICT (id) DO UPDATE SET
-                            envelope_id = EXCLUDED.envelope_id,
-                            amount = EXCLUDED.amount,
-                            description = EXCLUDED.description,
-                            date = EXCLUDED.date,
-                            type = EXCLUDED.type
-                    """,
-                        transaction_row,
+                        SELECT id, envelope_id, amount, description, date, type
+                        FROM transactions
+                    """
+                    ).fetchall()
+
+                    for transaction_row in cloud_transactions:
+                        # Insert or replace in local database
+                        self.conn.execute(
+                            """
+                            INSERT INTO main.transactions
+                            (id, envelope_id, amount, description, date, type)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            ON CONFLICT (id) DO UPDATE SET
+                                envelope_id = EXCLUDED.envelope_id,
+                                amount = EXCLUDED.amount,
+                                description = EXCLUDED.description,
+                                date = EXCLUDED.date,
+                                type = EXCLUDED.type
+                        """,
+                            transaction_row,
+                        )
+                        results["transactions_synced"] = (
+                            cast(int, results["transactions_synced"]) + 1
+                        )
+
+                    logger.info(
+                        f"Synced {results['transactions_synced']} transactions from cloud"
                     )
-                    results["transactions_synced"] = (
-                        cast(int, results["transactions_synced"]) + 1
-                    )
 
-                logger.info(
-                    f"Synced {results['transactions_synced']} transactions from cloud"
-                )
+                except Exception as e:
+                    error_msg = f"Error syncing transactions from cloud: {e}"
+                    logger.error(error_msg)
+                    cast(list[str], results["errors"]).append(error_msg)
 
-            except Exception as e:
-                error_msg = f"Error syncing transactions from cloud: {e}"
-                logger.error(error_msg)
-                cast(list[str], results["errors"]).append(error_msg)
-
-            cloud_conn.close()
-            self.conn.commit()
+                self.conn.commit()
+            finally:
+                cloud_conn.close()
             logger.info("Successfully completed sync from MotherDuck cloud")
 
             return results
@@ -1046,15 +1054,21 @@ class Database:
 
             # Count cloud records using direct connection
             try:
-                cloud_conn = duckdb.connect(f'md:{cloud_database}?motherduck_token={token}')
+                cloud_conn = duckdb.connect(
+                    f"md:{cloud_database}?motherduck_token={token}"
+                )
+                try:
+                    result = cloud_conn.execute(
+                        "SELECT COUNT(*) FROM envelopes"
+                    ).fetchone()
+                    cloud_envelopes = result[0] if result else 0
 
-                result = cloud_conn.execute("SELECT COUNT(*) FROM envelopes").fetchone()
-                cloud_envelopes = result[0] if result else 0
-
-                result = cloud_conn.execute("SELECT COUNT(*) FROM transactions").fetchone()
-                cloud_transactions = result[0] if result else 0
-
-                cloud_conn.close()
+                    result = cloud_conn.execute(
+                        "SELECT COUNT(*) FROM transactions"
+                    ).fetchone()
+                    cloud_transactions = result[0] if result else 0
+                finally:
+                    cloud_conn.close()
             except duckdb.Error:
                 cloud_envelopes = 0
                 cloud_transactions = 0
