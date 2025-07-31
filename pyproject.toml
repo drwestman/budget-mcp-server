@@ -26,7 +26,7 @@ dev-dependencies = [
 
 [tool.black]
 line-length = 88
-target-version = ["py312"]
+target-version = ["py311"]
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -58,6 +58,11 @@ addopts = [
 ]
 # Exclude standalone integration test scripts
 norecursedirs = ["data", "certs", ".git", ".mypy_cache", ".pytest_cache", ".venv"]
+markers = [
+    "integration: marks tests as integration tests that may require external dependencies",
+    "unit: marks tests as isolated unit tests with no external dependencies",
+    "motherduck: marks tests that require MotherDuck cloud connectivity",
+]
 
 [tool.mypy]
 python_version = "3.12"

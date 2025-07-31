@@ -28,4 +28,4 @@ RUN apt-get update && \
 # Create volume mount points for data and certificates
 VOLUME ["/app/data", "/app/certs"]
 
-CMD ["uv", "run", "python3", "run.py"]
+CMD ["uvx", "--from", ".", "budget-mcp-server"]

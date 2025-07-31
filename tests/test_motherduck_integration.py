@@ -339,6 +339,7 @@ class TestDatabaseCloudOperations:
         self.db.mode = "hybrid"
         self.db.is_cloud_connected = True
         self.db.motherduck_config = {"database": "test_db"}
+        self.db.connection_info = {"catalog_attached": True}
 
         # Mock the database connection execute method
         mock_conn = Mock()
