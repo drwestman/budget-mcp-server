@@ -279,6 +279,7 @@ class Database:
                         "primary": "local",
                         "fallback": True,
                         "requested_mode": self.mode,
+                        "cloud_available": False,
                     }
                     logger.warning(
                         f"Successfully connected in local-only mode "
