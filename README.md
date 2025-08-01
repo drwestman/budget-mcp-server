@@ -73,7 +73,7 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
   "mcpServers": {
     "budget-envelope": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/<OWNER>/<REPO>", "budget-mcp-server"],
+      "args": ["--from", "git+https://github.com/<OWNER>/budget-mcp-server", "budget-mcp-server"],
       "env": {
         "APP_ENV": "production",
         "MOTHERDUCK_TOKEN": "your-token-here"
