@@ -6,9 +6,23 @@ Generates self-signed SSL certificates for development use.
 Creates both the private key and certificate files needed for HTTPS.
 """
 
+import socket
 import subprocess
 import sys
 from pathlib import Path
+
+
+def get_system_hostname() -> str:
+    """
+    Get the system hostname, falling back to localhost if detection fails.
+    
+    Returns:
+        str: System hostname or 'localhost' as fallback
+    """
+    try:
+        return socket.gethostname()
+    except Exception:
+        return "localhost"
 
 
 def generate_self_signed_cert(
@@ -20,7 +34,7 @@ def generate_self_signed_cert(
     Args:
         cert_dir (str): Directory to store certificate files
         days (int): Certificate validity period in days
-        hostname (str): Hostname to include in certificate (defaults to localhost)
+        hostname (str): Hostname to include in certificate (auto-detects system hostname if None)
     """
     # Create certificates directory
     cert_path = Path(cert_dir)
@@ -30,9 +44,9 @@ def generate_self_signed_cert(
     cert_file = cert_path / "server.crt"
     config_file = cert_path / "cert.conf"
 
-    # Use provided hostname or default to localhost
+    # Use provided hostname or auto-detect system hostname
     if hostname is None:
-        hostname = "localhost"
+        hostname = get_system_hostname()
 
     print(f"Generating self-signed SSL certificate in {cert_dir}/")
     print(f"Certificate will be valid for {days} days")
@@ -150,7 +164,7 @@ def main() -> None:
         help="Certificate validity period in days (default: 365)",
     )
     parser.add_argument(
-        "--hostname", help="Hostname to include in certificate (default: localhost)"
+        "--hostname", help="Hostname to include in certificate (default: auto-detect system hostname)"
     )
 
     args = parser.parse_args()

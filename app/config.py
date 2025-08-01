@@ -18,6 +18,9 @@ class Config:
         self.MOTHERDUCK_SYNC_ON_START = (
             os.getenv("MOTHERDUCK_SYNC_ON_START", "false").lower() == "true"
         )
+        # Override to use local mode if no MOTHERDUCK_TOKEN is provided
+        if not self.MOTHERDUCK_TOKEN:
+            self.DATABASE_MODE = "local"
 
     @staticmethod
     def ensure_data_directory() -> None:
@@ -120,9 +123,6 @@ class DevelopmentConfig(Config):
         self.DEBUG = True
         self.TESTING = False
         self.RESET_DB_ON_START = True
-        # Override to use local mode for development if no MOTHERDUCK_TOKEN is provided
-        if not os.getenv("MOTHERDUCK_TOKEN"):
-            self.DATABASE_MODE = "local"
 
 
 class ProductionConfig(Config):
