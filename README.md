@@ -647,8 +647,6 @@ This server implements the traditional cash envelope budgeting method digitally:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Copyright (c) 2025 drwestman
-
 ## Support
 
 For questions about MCP integration or budget management features, please open an issue on GitHub.
