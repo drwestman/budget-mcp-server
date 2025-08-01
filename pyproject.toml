@@ -3,6 +3,7 @@ name = "budget-mcp-server"
 version = "0.1.0"
 description = "Budget Cash Envelope MCP Server - A cash envelope budgeting system for AI assistants"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.12"
 dependencies = [
     "duckdb>=0.8.0",
