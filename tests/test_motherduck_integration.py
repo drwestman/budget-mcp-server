@@ -82,12 +82,14 @@ class TestMotherDuckConfiguration:
             assert error_msg is None
 
     def test_validate_motherduck_config_cloud_mode_missing_token(self) -> None:
-        """Test MotherDuck config validation in cloud mode without token."""
+        """Test MotherDuck config auto-switches to local mode when token is missing."""
         with patch.dict(os.environ, {"DATABASE_MODE": "cloud"}, clear=True):
             config = Config()
+            # Config should auto-switch to local mode when no token is provided
+            assert config.DATABASE_MODE == "local"
             is_valid, error_msg = config.validate_motherduck_config()
-            assert is_valid is False
-            assert error_msg and "MOTHERDUCK_TOKEN is required" in error_msg
+            assert is_valid is True
+            assert error_msg is None
 
     def test_validate_motherduck_config_invalid_mode(self) -> None:
         """Test MotherDuck config validation with invalid mode."""
