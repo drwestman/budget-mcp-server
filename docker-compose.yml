@@ -1,4 +1,48 @@
 services:
+  nginx-proxy:
+    image: nginx:latest
+    container_name: nginx-proxy
+    profiles:
+      - prod-http
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Mount the Nginx configuration template and process it
+      - ./nginx/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      # Mount the SSL certificates
+      - ./certs:/etc/ssl/certs:ro
+    environment:
+      - UPSTREAM_HOST=budget-mcp-server-http
+      - SERVER_NAME=localhost
+    depends_on:
+      - budget-mcp-server-http
+    restart: unless-stopped
+    networks:
+      - default
+
+  nginx-proxy-dev:
+    image: nginx:latest
+    container_name: nginx-proxy-dev
+    profiles:
+      - dev-http
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Mount the Nginx configuration template and process it
+      - ./nginx/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      # Mount the SSL certificates
+      - ./certs:/etc/ssl/certs:ro
+    environment:
+      - UPSTREAM_HOST=budget-mcp-server-dev-http
+      - SERVER_NAME=localhost
+    depends_on:
+      - budget-mcp-server-dev-http
+    restart: unless-stopped
+    networks:
+      - default
+
   budget-mcp-server:
     build: .
     image: budget-mcp-server:latest
@@ -45,19 +89,18 @@ services:
     environment:
       - APP_ENV=production
       - DATABASE_FILE=/app/data/budget_app.duckdb
-      - DATABASE_MODE=hybrid
+      - DATABASE_MODE=local
       - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
       - MOTHERDUCK_DATABASE=budget_app
       - HOST=0.0.0.0
-      - PORT=8443
+      - PORT=8000
       - MCP_PATH=/mcp
-      - HTTPS_ENABLED=true
+      - HTTPS_ENABLED=false
       - BEARER_TOKEN=${BEARER_TOKEN}
     ports:
-      - "8443:8443"  # HTTPS port
+      - "8000:8000"  # HTTP port, nginx will take care of HTTPS
     volumes:
       - budget_data:/app/data
-      - ./certs:/app/certs:ro
     restart: unless-stopped
     networks:
       - default
@@ -65,11 +108,11 @@ services:
   budget-mcp-server-dev-http:
     build: .
     image: budget-mcp-server:dev
-    container_name: budget-mcp-server-dev
+    container_name: budget-mcp-server-dev-http
     profiles:
       - dev-http
     command: >
-      bash -c "if [ -f /usr/local/share/ca-certificates/server.crt ]; then update-ca-certificates; fi && uv run python3 run.py"
+      bash -c "uv run python3 run.py"
     environment:
       - APP_ENV=development
       - DATABASE_FILE=/app/data/budget_app.duckdb
@@ -86,8 +129,6 @@ services:
       - "8000:8000"  # HTTP port
     volumes:
       - budget_data:/app/data
-      - ./certs:/app/certs:ro
-      - ./certs/server.crt:/usr/local/share/ca-certificates/server.crt:ro
       - .:/app
     restart: unless-stopped
     networks:

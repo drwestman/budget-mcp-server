@@ -1,0 +1,38 @@
+# ./nginx/nginx.conf.template
+
+# Define an upstream server for your application
+upstream app_server {
+    # The server is reachable by its service name and internal port
+    server ${UPSTREAM_HOST}:8000;
+}
+
+# Server block to redirect all HTTP traffic to HTTPS
+server {
+    listen 80;
+    server_name ${SERVER_NAME};
+    return 301 https://$host$request_uri;
+}
+
+# The main server block for handling HTTPS traffic
+server {
+    listen 443 ssl;
+    server_name ${SERVER_NAME};
+
+    # Path to SSL certificates inside the container
+    ssl_certificate /etc/ssl/certs/server.crt;
+    ssl_certificate_key /etc/ssl/certs/server.key;
+
+    # Improve SSL security
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:ECDHE-RSA-AES128-GCM-SHA256';
+    ssl_prefer_server_ciphers on;
+
+    # Root location to proxy traffic
+    location / {
+        proxy_pass http://app_server; # Forward traffic to the upstream
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
