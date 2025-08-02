@@ -1,22 +1,22 @@
-# ./nginx/nginx.conf
+# ./nginx/nginx.conf.template
 
 # Define an upstream server for your application
 upstream app_server {
     # The server is reachable by its service name and internal port
-    server budget-mcp-server-http:8000;
+    server ${UPSTREAM_HOST}:8000;
 }
 
 # Server block to redirect all HTTP traffic to HTTPS
 server {
     listen 80;
-    server_name davids-debian-laptop; # Replace with your domain
+    server_name ${SERVER_NAME};
     return 301 https://$host$request_uri;
 }
 
 # The main server block for handling HTTPS traffic
 server {
     listen 443 ssl;
-    server_name davids-debian-laptop; # Replace with your domain
+    server_name ${SERVER_NAME};
 
     # Path to SSL certificates inside the container
     ssl_certificate /etc/ssl/certs/server.crt;
@@ -25,7 +25,7 @@ server {
     # Improve SSL security
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:ECDHE-RSA-AES128-GCM-SHA256';
-    ssl_prefer_server_ciphers off;
+    ssl_prefer_server_ciphers on;
 
     # Root location to proxy traffic
     location / {
