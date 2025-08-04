@@ -150,11 +150,11 @@ prompt_with_default "Select environment (1-3)" "1" "env_choice"
 case "$env_choice" in
     1|"development")
         APP_ENV="development"
-        DATABASE_FILE_DEFAULT="budget_app.duckdb"
+        DATABASE_FILE_DEFAULT="~/.local/share/budget-mcp-server/budget_app.duckdb"
         ;;
     2|"production")
         APP_ENV="production"
-        DATABASE_FILE_DEFAULT="./data/budget_app.duckdb"
+        DATABASE_FILE_DEFAULT="~/.local/share/budget-mcp-server/budget_app.duckdb"
         ;;
     3|"testing")
         APP_ENV="testing"
@@ -162,7 +162,7 @@ case "$env_choice" in
         ;;
     *)
         APP_ENV="development"
-        DATABASE_FILE_DEFAULT="budget_app.duckdb"
+        DATABASE_FILE_DEFAULT="~/.local/share/budget-mcp-server/budget_app.duckdb"
         print_warning "Invalid choice. Using development environment."
         ;;
 esac

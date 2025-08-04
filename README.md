@@ -123,7 +123,7 @@ uv run pytest tests/test_*.py     # Specific test files
 ### Environment Variables
 - `BEARER_TOKEN`: Required for HTTP transport (generate with `openssl rand -hex 32`)
 - `APP_ENV`: development/production/testing (default: development)
-- `DATABASE_FILE`: DuckDB file path (default: ./data/budget_app.duckdb)
+- `DATABASE_FILE`: DuckDB file path (default: ~/.local/share/budget-mcp-server/budget_app.duckdb)
 - `HOST`/`PORT`: Server binding (default: 127.0.0.1:8000)
 - `MOTHERDUCK_TOKEN`: Optional cloud database token
 - `DATABASE_MODE`: local/cloud/hybrid (default: hybrid, auto-switches to local if no token)

@@ -347,7 +347,7 @@ class TestDatabaseCloudOperations:
         # Mock the database connection execute method
         mock_conn = Mock()
         self.db.conn = mock_conn
-        
+
         # Mock the cloud connection used in sync_to_cloud
         mock_cloud_conn = Mock()
         mock_duckdb_connect.return_value = mock_cloud_conn
