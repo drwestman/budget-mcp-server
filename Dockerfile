@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir uv && \
 # Copy application code
 COPY app/ ./app/
 COPY run.py ./
+COPY run_stdio.py ./
 COPY scripts/ ./scripts/
 
 ENV APP_ENV=production

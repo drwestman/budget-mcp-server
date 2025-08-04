@@ -1,4 +1,73 @@
 services:
+  budget-mcp-server:
+    build: .
+    image: budget-mcp-server:latest
+    container_name: budget-mcp-server-stdio
+    command: >
+      bash -c "uv run python3 run_stdio.py"
+    environment:
+      - APP_ENV=production
+      - DATABASE_FILE=/app/data/budget_app.duckdb
+      - DATABASE_MODE=hybrid
+      - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
+      - MOTHERDUCK_DATABASE=budget_app
+      - MOTHERDUCK_SYNC_ON_START=false
+    volumes:
+      - budget_data:/app/data
+    restart: unless-stopped
+    networks:
+      - default
+
+    # Configure stdin/stdout for MCP server communication
+    stdin_open: true
+    tty: true
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  budget-mcp-server-dev:
+    build: .
+    image: budget-mcp-server:dev
+    container_name: budget-mcp-server-dev-stdio
+    profiles:
+      - dev
+    command: >
+      bash -c "uv run python3 run_stdio.py"
+    environment:
+      - APP_ENV=development
+      - DATABASE_FILE=./data/budget_app.duckdb
+      - DATABASE_MODE=hybrid
+      - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
+      - MOTHERDUCK_DATABASE=budget_app
+      - MOTHERDUCK_SYNC_ON_START=false
+    volumes:
+      - budget_data:/app/data
+      - .:/app
+    restart: unless-stopped
+    networks:
+      - default
+
+    # Configure stdin/stdout for MCP server communication
+    stdin_open: true
+    tty: true
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
   nginx-proxy:
     image: nginx:latest
     container_name: nginx-proxy
@@ -42,41 +111,6 @@ services:
     restart: unless-stopped
     networks:
       - default
-
-  budget-mcp-server:
-    build: .
-    image: budget-mcp-server:latest
-    container_name: budget-mcp-server-stdio
-    profiles:
-      - prod
-    command: >
-      bash -c "uvx -n --from . budget-mcp-server"
-    environment:
-      - APP_ENV=production
-      - DATABASE_FILE=/app/data/budget_app.duckdb
-      - DATABASE_MODE=hybrid
-      - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
-      - MOTHERDUCK_DATABASE=budget_app
-      - MOTHERDUCK_SYNC_ON_START=false
-    volumes:
-      - budget_data:/app/data
-    restart: unless-stopped
-    networks:
-      - default
-
-    # Configure stdin/stdout for MCP server communication
-    stdin_open: true
-    tty: true
-
-    # Resource limits
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.5'
-        reservations:
-          memory: 256M
-          cpus: '0.25'
 
   budget-mcp-server-http:
     build: .
@@ -133,42 +167,6 @@ services:
     restart: unless-stopped
     networks:
       - default
-
-  budget-mcp-server-dev:
-    build: .
-    image: budget-mcp-server:dev
-    container_name: budget-mcp-server-dev-stdio
-    profiles:
-      - dev
-    command: >
-      bash -c "uvx -n --from . budget-mcp-server"
-    environment:
-      - APP_ENV=development
-      - DATABASE_FILE=./data/budget_app.duckdb
-      - DATABASE_MODE=hybrid
-      - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
-      - MOTHERDUCK_DATABASE=budget_app
-      - MOTHERDUCK_SYNC_ON_START=false
-    volumes:
-      - budget_data:/app/data
-      - .:/app
-    restart: unless-stopped
-    networks:
-      - default
-
-    # Configure stdin/stdout for MCP server communication
-    stdin_open: true
-    tty: true
-
-    # Resource limits
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.5'
-        reservations:
-          memory: 256M
-          cpus: '0.25'
 
 volumes:
   budget_data:
