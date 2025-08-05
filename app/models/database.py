@@ -364,10 +364,11 @@ class Database:
             return result[0] if result else None
         except duckdb.ConstraintException as e:
             error_str = str(e)
-            if (
+            # Handle both possible DuckDB constraint error formats
+            if "UNIQUE constraint failed: envelopes.category" in error_str or (
                 "violates unique constraint" in error_str.lower()
                 and f"category: {category}" in error_str
-            ):  # More robust check
+            ):
                 raise ValueError(f"Envelope with category '{category}' already exists.")
             # Re-raise other constraint exceptions that are not unique
             # violations on category
