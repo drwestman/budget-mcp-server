@@ -125,7 +125,7 @@ class TestToolRegistry:
             registry.envelope_service,
         )
 
-        arguments = {"name": "Test Envelope", "budget": 100.0}
+        arguments = {"category": "Test Envelope", "budgeted_amount": 100.0}
         result = await registry.call_tool("create_envelope", arguments)
 
         mock_handler.assert_called_once_with(registry.envelope_service, arguments)
@@ -150,8 +150,17 @@ class TestToolRegistry:
     @pytest.mark.asyncio
     async def test_call_tool_utility_tool(self, registry):
         """Test calling a utility tool."""
+        # Define expected result to avoid duplication
+        expected_result = {
+            "envelope_id": 123,
+            "category": "Test Category",
+            "current_balance": 75.0,
+            "starting_balance": 100.0,
+            "budgeted_amount": 200.0,
+        }
+
         # Mock the handler
-        mock_handler = AsyncMock(return_value={"balance": 75.0})
+        mock_handler = AsyncMock(return_value=expected_result)
         registry._handlers["get_envelope_balance"] = (
             mock_handler,
             registry.envelope_service,
@@ -161,7 +170,7 @@ class TestToolRegistry:
         result = await registry.call_tool("get_envelope_balance", arguments)
 
         mock_handler.assert_called_once_with(registry.envelope_service, arguments)
-        assert result == {"balance": 75.0}
+        assert result == expected_result
 
     @pytest.mark.asyncio
     async def test_call_tool_unknown_tool(self, registry):
