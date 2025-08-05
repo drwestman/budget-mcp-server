@@ -26,7 +26,13 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Create non-root user and group
+RUN groupadd -r -g 1000 appuser && \
+    useradd -r -u 1000 -g appuser -d /app -s /bin/bash appuser && \
+    chown -R appuser:appuser /app
+
 # Create volume mount points for data and certificates
 VOLUME ["/app/data", "/app/certs"]
 
+USER appuser
 CMD ["uvx", "--from", ".", "budget-mcp-server"]
