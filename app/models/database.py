@@ -364,10 +364,10 @@ class Database:
             return result[0] if result else None
         except duckdb.ConstraintException as e:
             error_str = str(e)
-            # Handle both possible DuckDB constraint error formats
-            if "UNIQUE constraint failed: envelopes.category" in error_str or (
+            # Handle both possible DuckDB constraint error formats (case-insensitive)
+            if "unique constraint failed: envelopes.category" in error_str.lower() or (
                 "violates unique constraint" in error_str.lower()
-                and f"category: {category}" in error_str
+                and f"category: {category}".lower() in error_str.lower()
             ):
                 raise ValueError(f"Envelope with category '{category}' already exists.")
             # Re-raise other constraint exceptions that are not unique
@@ -488,7 +488,7 @@ class Database:
             self.conn.commit()
             return True
         except duckdb.ConstraintException as e:
-            if "UNIQUE constraint failed: envelopes.category" in str(e):
+            if "unique constraint failed: envelopes.category" in str(e).lower():
                 raise ValueError(f"Envelope with category '{category}' already exists.")
             raise
         except Exception as e:
