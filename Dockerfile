@@ -29,7 +29,7 @@ RUN apt-get update && \
 # Create non-root user and group
 RUN groupadd -r -g 1000 appuser && \
     useradd -r -u 1000 -g appuser -d /app -s /bin/bash appuser && \
-    chown -R appuser:appuser /app
+    mkdir -p /app/data /app/certs && chown -R appuser:appuser /app
 
 # Create volume mount points for data and certificates
 VOLUME ["/app/data", "/app/certs"]
