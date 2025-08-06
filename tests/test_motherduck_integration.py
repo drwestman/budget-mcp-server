@@ -11,6 +11,7 @@ import pytest
 
 from app.config import Config
 from app.models.database import Database
+from app.models.database_types import DatabaseMode
 
 
 class TestMotherDuckConfiguration:
@@ -94,10 +95,9 @@ class TestMotherDuckConfiguration:
     def test_validate_motherduck_config_invalid_mode(self) -> None:
         """Test MotherDuck config validation with invalid mode."""
         with patch.dict(os.environ, {"DATABASE_MODE": "invalid"}):
-            config = Config()
-            is_valid, error_msg = config.validate_motherduck_config()
-            assert is_valid is False
-            assert error_msg and "Invalid DATABASE_MODE" in error_msg
+            # Invalid mode should now raise ValueError during Config initialization
+            with pytest.raises(ValueError, match="Invalid database mode 'invalid'"):
+                Config()
 
 
 class TestDatabaseConnectionModes:
@@ -105,8 +105,8 @@ class TestDatabaseConnectionModes:
 
     def test_init_local_mode(self) -> None:
         """Test Database initialization in local mode."""
-        db = Database(db_path=":memory:", mode="local", motherduck_config=None)
-        assert db.mode == "local"
+        db = Database(db_path=":memory:", mode=DatabaseMode.LOCAL, motherduck_config=None)
+        assert db.mode == DatabaseMode.LOCAL
         assert db.is_cloud_connected is False
         assert db.connection_info["primary"] == "local"
         assert db.conn is not None

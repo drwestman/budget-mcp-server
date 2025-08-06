@@ -6,6 +6,8 @@ from typing import Any, cast
 
 import duckdb
 
+from .database_types import DatabaseMode
+
 # Set up logger for this module
 logger = logging.getLogger(__name__)
 
@@ -21,7 +23,7 @@ class Database:
     def __init__(
         self,
         db_path: str,
-        mode: str = "local",
+        mode: str | DatabaseMode = DatabaseMode.LOCAL,
         motherduck_config: dict[str, str] | None = None,
     ):
         """
@@ -30,12 +32,13 @@ class Database:
         Args:
             db_path (str): Path to the DuckDB database file (for local mode)
                 or database name (for cloud mode)
-            mode (str): Connection mode - 'local', 'cloud', or 'hybrid'
+            mode: Connection mode - DatabaseMode enum or string
             motherduck_config (dict, optional): MotherDuck configuration
                 containing token and database name
         """
         self.db_path = db_path
-        self.mode = mode
+        # Convert string mode to enum if needed
+        self.mode = DatabaseMode.from_string(mode) if isinstance(mode, str) else mode
         self.motherduck_config = motherduck_config or {}
         self.conn: duckdb.DuckDBPyConnection | None = None
         self.is_cloud_connected = False
@@ -52,13 +55,9 @@ class Database:
 
     def _validate_config(self) -> None:
         """Validate configuration before attempting connection."""
-        if self.mode not in ["local", "cloud", "hybrid"]:
-            raise ValueError(
-                f"Invalid database mode '{self.mode}'. "
-                f"Must be 'local', 'cloud', or 'hybrid'"
-            )
+        # Mode validation is now handled by DatabaseMode.from_string() in __init__
 
-        if self.mode in ["cloud", "hybrid"]:
+        if self.mode.requires_token():
             token = self.motherduck_config.get("token")
             if not token:
                 raise ValueError(f"MotherDuck token is required for '{self.mode}' mode")
@@ -98,15 +97,15 @@ class Database:
         Returns:
             str: Connection string for DuckDB/MotherDuck
         """
-        if self.mode == "local":
+        if self.mode == DatabaseMode.LOCAL:
             return self.db_path
 
-        elif self.mode == "cloud":
+        elif self.mode == DatabaseMode.CLOUD:
             token = self.motherduck_config.get("token")
             database = self._get_database_name()
             return f"md:{database}?motherduck_token={token}"
 
-        elif self.mode == "hybrid":
+        elif self.mode == DatabaseMode.HYBRID:
             # Hybrid mode starts with local connection
             return self.db_path
 
@@ -118,9 +117,7 @@ class Database:
         Ensures the MotherDuck database exists by creating it if necessary.
         Supports both cloud and hybrid modes.
         """
-        if self.mode not in ["cloud", "hybrid"] or not self.motherduck_config.get(
-            "token"
-        ):
+        if not self.mode.requires_token() or not self.motherduck_config.get("token"):
             return
 
         token = self.motherduck_config.get("token")
@@ -174,7 +171,8 @@ class Database:
             self.conn.execute(f"SET motherduck_token='{token}'")
 
             # Test MotherDuck connectivity with a simple query
-            # Note: We can't test table creation due to schema access limitations in hybrid mode
+            # Note: We can't test table creation due to schema access
+            # limitations in hybrid mode
             # The token validation during SET is sufficient to verify connectivity
             pass
 
@@ -194,7 +192,7 @@ class Database:
 
             logger.info(f"Connecting to database in '{self.mode}' mode...")
 
-            if self.mode == "cloud":
+            if self.mode == DatabaseMode.CLOUD:
                 # Ensure MotherDuck DB exists before connecting
                 self._ensure_motherduck_db_exists()
 
@@ -207,7 +205,7 @@ class Database:
                     f"{self.motherduck_config.get('database', 'budget_app')}"
                 )
 
-            elif self.mode == "hybrid":
+            elif self.mode == DatabaseMode.HYBRID:
                 # Ensure MotherDuck DB exists
                 self._ensure_motherduck_db_exists()
 
@@ -263,7 +261,7 @@ class Database:
             self.conn.execute("SET GLOBAL pandas_analyze_sample = 10000;")
 
         except Exception as e:
-            if self.mode in ["cloud", "hybrid"]:
+            if self.mode.requires_token():
                 logger.error(f"Failed to connect to MotherDuck: {e}")
 
                 # Both cloud and hybrid modes can fall back to local-only
@@ -753,7 +751,7 @@ class Database:
         if not self.is_cloud_connected:
             raise ValueError("Cloud connection not available for synchronization")
 
-        if self.mode == "cloud":
+        if self.mode == DatabaseMode.CLOUD:
             raise ValueError(
                 "sync_to_cloud not applicable in cloud mode (data is already in cloud)"
             )
@@ -908,7 +906,7 @@ class Database:
         if not self.is_cloud_connected:
             raise ValueError("Cloud connection not available for synchronization")
 
-        if self.mode == "cloud":
+        if self.mode == DatabaseMode.CLOUD:
             raise ValueError(
                 "sync_from_cloud not applicable in cloud mode "
                 "(data is already in cloud)"
@@ -937,7 +935,8 @@ class Database:
                 try:
                     cloud_envelopes = cloud_conn.execute(
                         """
-                        SELECT id, category, budgeted_amount, starting_balance, description
+                        SELECT id, category, budgeted_amount, starting_balance,
+                               description
                         FROM envelopes
                     """
                     ).fetchall()
@@ -947,7 +946,8 @@ class Database:
                         self.conn.execute(
                             """
                             INSERT INTO main.envelopes
-                            (id, category, budgeted_amount, starting_balance, description)
+                            (id, category, budgeted_amount, starting_balance,
+                     description)
                             VALUES (?, ?, ?, ?, ?)
                             ON CONFLICT (id) DO UPDATE SET
                                 category = EXCLUDED.category,
@@ -1000,7 +1000,8 @@ class Database:
                         )
 
                     logger.info(
-                        f"Synced {results['transactions_synced']} transactions from cloud"
+                        f"Synced {results['transactions_synced']} transactions "
+                        f"from cloud"
                     )
 
                 except Exception as e:
@@ -1032,10 +1033,10 @@ class Database:
                 "message": "Cloud connection not available",
             }
 
-        if self.mode == "cloud":
+        if self.mode == DatabaseMode.CLOUD:
             return {
                 "cloud_available": True,
-                "mode": "cloud",
+                "mode": self.mode,
                 "message": "Operating in cloud mode - no sync needed",
             }
 
