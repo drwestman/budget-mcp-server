@@ -38,7 +38,15 @@ class Database:
         """
         self.db_path = db_path
         # Convert string mode to enum if needed
-        self.mode = DatabaseMode.from_string(mode) if isinstance(mode, str) else mode
+        if isinstance(mode, DatabaseMode):
+            self.mode = mode
+        elif isinstance(mode, str):
+            self.mode = DatabaseMode.from_string(mode)
+        else:
+            raise TypeError(
+                f"Database mode must be a string or DatabaseMode, "
+                f"got {type(mode).__name__}"
+            )
         self.motherduck_config = motherduck_config or {}
         self.conn: duckdb.DuckDBPyConnection | None = None
         self.is_cloud_connected = False
