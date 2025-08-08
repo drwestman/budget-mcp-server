@@ -113,15 +113,15 @@ def _register_fastmcp_tools(mcp: FastMCP, registry: ToolRegistry) -> None:
         description: str | None = None,
     ) -> str:
         """Update an existing envelope's properties."""
-        args = {"envelope_id": envelope_id}
+        args: dict[str, Any] = {"envelope_id": envelope_id}
         if category is not None:
-            args["category"] = category  # type: ignore[assignment]
+            args["category"] = category
         if budgeted_amount is not None:
-            args["budgeted_amount"] = budgeted_amount  # type: ignore[assignment]
+            args["budgeted_amount"] = budgeted_amount
         if starting_balance is not None:
-            args["starting_balance"] = starting_balance  # type: ignore[assignment]
+            args["starting_balance"] = starting_balance
         if description is not None:
-            args["description"] = description  # type: ignore[assignment]
+            args["description"] = description
         result = await registry.call_tool("update_envelope", args)
         return (
             json.dumps(result, indent=2)
@@ -147,18 +147,19 @@ def _register_fastmcp_tools(mcp: FastMCP, registry: ToolRegistry) -> None:
         envelope_id: int,
         amount: float,
         description: str,
-        type: str,
+        type: str,  # noqa: A002
         date: str | None = None,
     ) -> str:
         """Create a new transaction."""
-        args = {
+        transaction_type = type  # Avoid shadowing built-in
+        args: dict[str, Any] = {
             "envelope_id": envelope_id,
             "amount": amount,
             "description": description,
-            "type": type,
+            "type": transaction_type,
         }
         if date is not None:
-            args["date"] = date  # type: ignore[assignment]
+            args["date"] = date
         result = await registry.call_tool("create_transaction", args)
         return (
             json.dumps(result, indent=2)
@@ -197,21 +198,22 @@ def _register_fastmcp_tools(mcp: FastMCP, registry: ToolRegistry) -> None:
         envelope_id: int | None = None,
         amount: float | None = None,
         description: str | None = None,
-        type: str | None = None,
+        type: str | None = None,  # noqa: A002
         date: str | None = None,
     ) -> str:
         """Update an existing transaction's properties."""
-        args = {"transaction_id": transaction_id}
+        transaction_type = type  # Avoid shadowing built-in
+        args: dict[str, Any] = {"transaction_id": transaction_id}
         if envelope_id is not None:
-            args["envelope_id"] = envelope_id  # type: ignore[assignment]
+            args["envelope_id"] = envelope_id
         if amount is not None:
-            args["amount"] = amount  # type: ignore[assignment]
+            args["amount"] = amount
         if description is not None:
-            args["description"] = description  # type: ignore[assignment]
-        if type is not None:
-            args["type"] = type  # type: ignore[assignment]
+            args["description"] = description
+        if transaction_type is not None:
+            args["type"] = transaction_type
         if date is not None:
-            args["date"] = date  # type: ignore[assignment]
+            args["date"] = date
         result = await registry.call_tool("update_transaction", args)
         return (
             json.dumps(result, indent=2)

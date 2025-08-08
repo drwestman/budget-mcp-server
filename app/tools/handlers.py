@@ -5,7 +5,7 @@ This module contains the business logic for all tools in a unified format.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from app.services.envelope_service import EnvelopeService
@@ -320,9 +320,13 @@ async def handle_sync_from_cloud(
 
 
 async def handle_get_server_version(
-    envelope_service: EnvelopeService, arguments: dict[str, Any]
+    envelope_service: EnvelopeService, arguments: dict[str, Any]  # noqa: ARG001
 ) -> HandlerResponse:
-    """Handle get_server_version tool call."""
+    """
+    Handle get_server_version tool call.
+
+    Note: envelope_service parameter is unused but required by tool registry pattern.
+    """
     try:
         version_info = get_version_info()
         return format_success(version_info)
@@ -414,20 +418,64 @@ def _determine_envelope_status(balance: float, utilization: float) -> str:
         return "healthy"
 
 
+def _get_date_range_for_period(period: str) -> datetime | None:
+    """Calculate start date for analysis period."""
+    today = datetime.now()
+
+    if period == "last_30_days":
+        return today - timedelta(days=30)
+    elif period == "last_90_days":
+        return today - timedelta(days=90)
+    elif period == "ytd":
+        return datetime(today.year, 1, 1)
+    elif period == "all_time":
+        return None
+    else:
+        return today - timedelta(days=30)  # Default fallback
+
+
+def _filter_transactions_by_period(
+    transactions: list[dict[str, Any]], period: str
+) -> list[dict[str, Any]]:
+    """Filter transactions based on analysis period."""
+    start_date = _get_date_range_for_period(period)
+
+    if start_date is None:  # all_time
+        return transactions
+
+    filtered_transactions = []
+    for transaction in transactions:
+        try:
+            transaction_date = datetime.strptime(transaction["date"], "%Y-%m-%d")
+            if transaction_date >= start_date:
+                filtered_transactions.append(transaction)
+        except (ValueError, KeyError):
+            # Skip transactions with invalid or missing dates
+            continue
+
+    return filtered_transactions
+
+
 def _analyze_spending_patterns(
     transactions: list[dict[str, Any]], period: str
 ) -> dict[str, Any]:
     """Analyze spending patterns from transaction data."""
+    # Filter transactions based on the specified period
+    filtered_transactions = _filter_transactions_by_period(transactions, period)
+
     total_expenses = sum(
-        abs(t["amount"]) for t in transactions if t["type"] == "expense"
+        abs(t["amount"]) for t in filtered_transactions if t["type"] == "expense"
     )
-    total_income = sum(t["amount"] for t in transactions if t["type"] == "income")
+    total_income = sum(
+        t["amount"] for t in filtered_transactions if t["type"] == "income"
+    )
 
     return {
         "total_expenses": total_expenses,
         "total_income": total_income,
         "net_flow": total_income - total_expenses,
-        "transaction_count": len(transactions),
+        "transaction_count": len(filtered_transactions),
+        "period_applied": period,
     }
 
 
