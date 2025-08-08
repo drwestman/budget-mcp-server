@@ -1,18 +1,12 @@
-# Run App in stdio transport mode
-- `uv run python -m app.cli`
-
-# Testing
-- `uv run pytest`
-
-# Code Quality Tools
-- `black`
-- `ruff`
-- `mypy`
+# Commands
+- Run app: `uv run python -m app.cli`
+- Test: `uv run pytest`
+- Quality: `black`, `ruff`, `mypy`
 
 # GitHub
 - Username: drwestman
-- Use this script to get the current unresolved PR comments: `get_pr_comments.py -r u`
+- PR comments: `get_pr_comments.py -r u`
 
-# Docker Compose
-- Always use `docker compose` instead of `docker-compose`
+# Docker
+- Use `docker compose` (not `docker-compose`)
 

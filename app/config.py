@@ -1,6 +1,8 @@
 import os
 import re
 
+from .models.database_types import DatabaseMode
+
 
 class Config:
     """Base configuration class."""
@@ -16,19 +18,21 @@ class Config:
         self.BEARER_TOKEN = os.getenv("BEARER_TOKEN")
         self.MOTHERDUCK_TOKEN = os.getenv("MOTHERDUCK_TOKEN")
         self.MOTHERDUCK_DATABASE = os.getenv("MOTHERDUCK_DATABASE", "budget_app")
-        self.DATABASE_MODE = os.getenv("DATABASE_MODE", "hybrid")
+        # Get DATABASE_MODE from environment and convert to enum
+        mode_str = os.getenv("DATABASE_MODE", "hybrid")
+        self.DATABASE_MODE = DatabaseMode.from_string(mode_str)
         self.MOTHERDUCK_SYNC_ON_START = (
             os.getenv("MOTHERDUCK_SYNC_ON_START", "false").lower() == "true"
         )
         # Override to use local mode if no MOTHERDUCK_TOKEN is provided
         if not self.MOTHERDUCK_TOKEN:
-            self.DATABASE_MODE = "local"
+            self.DATABASE_MODE = DatabaseMode.LOCAL
 
     @staticmethod
     def _get_default_database_path() -> str:
         """
         Get XDG-compliant default database path.
-        
+
         Returns:
             str: Default database file path following XDG Base Directory spec
         """
@@ -82,17 +86,22 @@ class Config:
         return True
 
     @staticmethod
-    def validate_database_mode(mode: str) -> bool:
+    def validate_database_mode(mode: str | DatabaseMode | None) -> bool:
         """
         Validate database mode setting.
 
         Args:
-            mode (str): Database mode ('local', 'cloud', 'hybrid')
+            mode: Database mode (DatabaseMode enum, string, or None)
 
         Returns:
             bool: True if mode is valid, False otherwise
         """
-        return mode in ["local", "cloud", "hybrid"]
+        if isinstance(mode, DatabaseMode):
+            return True
+        elif isinstance(mode, str):
+            return DatabaseMode.is_valid(mode)
+        else:
+            return False
 
     def validate_motherduck_config(self) -> tuple[bool, str | None]:
         """
@@ -104,18 +113,18 @@ class Config:
         mode = self.DATABASE_MODE
         token = self.MOTHERDUCK_TOKEN
 
-        # Validate database mode
+        # Validate database mode (should already be validated in __init__)
         if not self.validate_database_mode(mode):
             return (
                 False,
                 (
                     f"Invalid DATABASE_MODE '{mode}'. "
-                    "Must be 'local', 'cloud', or 'hybrid'"
+                    f"Must be one of: {DatabaseMode.all_modes()}"
                 ),
             )
 
         # If using cloud or hybrid mode, MotherDuck token is required
-        if mode in ["cloud", "hybrid"]:
+        if mode.requires_token():
             if not token:
                 return False, f"MOTHERDUCK_TOKEN is required for DATABASE_MODE '{mode}'"
 
@@ -160,7 +169,7 @@ class ConfigTesting(Config):
         self.TESTING = True
         self.DATABASE_FILE = ":memory:"
         self.RESET_DB_ON_START = True
-        self.DATABASE_MODE = "local"
+        self.DATABASE_MODE = DatabaseMode.LOCAL
 
 
 # Configuration mapping
