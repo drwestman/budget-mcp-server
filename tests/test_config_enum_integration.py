@@ -1,8 +1,10 @@
 """Integration tests for Config class with DatabaseMode enum."""
 import os
-import pytest
 from unittest.mock import patch
-from app.config import Config, DevelopmentConfig, ProductionConfig, ConfigTesting
+
+import pytest
+
+from app.config import Config, ConfigTesting, DevelopmentConfig, ProductionConfig
 from app.models.database_types import DatabaseMode
 
 
@@ -26,7 +28,9 @@ class TestConfigEnumIntegration:
 
     def test_config_database_mode_case_insensitive(self) -> None:
         """Test Config.DATABASE_MODE handles case insensitive environment values."""
-        with patch.dict(os.environ, {"DATABASE_MODE": "CLOUD", "MOTHERDUCK_TOKEN": "test_token"}):
+        with patch.dict(
+            os.environ, {"DATABASE_MODE": "CLOUD", "MOTHERDUCK_TOKEN": "test_token"}
+        ):
             config = Config()
             assert config.DATABASE_MODE == DatabaseMode.CLOUD
             assert isinstance(config.DATABASE_MODE, DatabaseMode)
@@ -43,12 +47,12 @@ class TestConfigEnumIntegration:
         assert Config.validate_database_mode(DatabaseMode.LOCAL) is True
         assert Config.validate_database_mode(DatabaseMode.CLOUD) is True
         assert Config.validate_database_mode(DatabaseMode.HYBRID) is True
-        
+
         # Should accept string values
         assert Config.validate_database_mode("local") is True
         assert Config.validate_database_mode("cloud") is True
         assert Config.validate_database_mode("hybrid") is True
-        
+
         # Should reject invalid values
         assert Config.validate_database_mode("invalid") is False
         assert Config.validate_database_mode("") is False
@@ -70,7 +74,7 @@ class TestConfigEnumIntegration:
             assert is_valid is True
             assert error_msg is None
 
-        # Test cloud mode requires token  
+        # Test cloud mode requires token
         with patch.dict(os.environ, {"DATABASE_MODE": "cloud"}, clear=True):
             config = Config()
             # Should auto-switch to local since no token provided
@@ -85,7 +89,9 @@ class TestConfigEnumIntegration:
 
     def test_config_production_uses_enum(self) -> None:
         """Test ProductionConfig uses DatabaseMode enum."""
-        with patch.dict(os.environ, {"DATABASE_MODE": "hybrid", "MOTHERDUCK_TOKEN": "test_token"}):
+        with patch.dict(
+            os.environ, {"DATABASE_MODE": "hybrid", "MOTHERDUCK_TOKEN": "test_token"}
+        ):
             config = ProductionConfig()
             assert config.DATABASE_MODE == DatabaseMode.HYBRID
             assert isinstance(config.DATABASE_MODE, DatabaseMode)
@@ -99,22 +105,30 @@ class TestConfigEnumIntegration:
 
     def test_config_enum_backward_compatibility(self) -> None:
         """Test Config enum values work with string operations for backward compatibility."""
-        with patch.dict(os.environ, {"DATABASE_MODE": "hybrid", "MOTHERDUCK_TOKEN": "test_token"}):
+        with patch.dict(
+            os.environ, {"DATABASE_MODE": "hybrid", "MOTHERDUCK_TOKEN": "test_token"}
+        ):
             config = Config()
-            
+
             # Should work with string comparisons
             assert config.DATABASE_MODE == "hybrid"
             assert str(config.DATABASE_MODE) == "hybrid"
-            
+
             # Should work in string contexts
             assert f"Mode: {config.DATABASE_MODE}" == "Mode: hybrid"
 
     def test_config_validation_error_messages_use_enum_values(self) -> None:
         """Test validation error messages reference correct enum values."""
-        with patch.dict(os.environ, {"DATABASE_MODE": "cloud", "MOTHERDUCK_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.validtoken123.signature"}):
+        with patch.dict(
+            os.environ,
+            {
+                "DATABASE_MODE": "cloud",
+                "MOTHERDUCK_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.validtoken123.signature",
+            },
+        ):
             config = Config()
             is_valid, error_msg = config.validate_motherduck_config()
-            
+
             # Should be valid with a proper JWT token format
             assert is_valid is True
             assert error_msg is None
@@ -126,9 +140,11 @@ class TestConfigEnumIntegration:
         with patch.dict(os.environ, {"DATABASE_MODE": "local"}):
             config = Config()
             assert not config.DATABASE_MODE.requires_token()
-            
+
         # Test CLOUD and HYBRID modes require token
-        with patch.dict(os.environ, {"DATABASE_MODE": "cloud", "MOTHERDUCK_TOKEN": "test_token"}):
+        with patch.dict(
+            os.environ, {"DATABASE_MODE": "cloud", "MOTHERDUCK_TOKEN": "test_token"}
+        ):
             config = Config()
             # Will auto-switch to local due to invalid token, but we can test the enum method
             assert DatabaseMode.CLOUD.requires_token()

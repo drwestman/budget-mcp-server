@@ -16,11 +16,13 @@ from app.config import config
 from app.models.database import Database
 from app.services.envelope_service import EnvelopeService
 from app.services.transaction_service import TransactionService
+from app.tools.handlers import handle_budget_health_analysis
 from app.tools.registry import (
     MCPToolAdapter,
     create_mcp_adapter,
     create_tool_registry,
 )
+from app.tools.schemas import get_prompt_schemas
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +108,53 @@ class MCPServer:
         ) -> list[types.Content]:
             """Handle tool calls."""
             return await self.adapter.handle_tool_call(name, arguments)
+
+        @self.server.list_resources()
+        async def handle_list_resources() -> list[types.Resource]:
+            """List available resources."""
+            return []
+
+        @self.server.list_prompts()
+        async def handle_list_prompts() -> list[types.Prompt]:
+            """List available prompts."""
+            prompt_schemas = get_prompt_schemas()
+            prompts = []
+            for prompt_name, schema in prompt_schemas.items():
+                prompts.append(
+                    types.Prompt(
+                        name=prompt_name,
+                        description=schema["description"],
+                        arguments=schema.get("arguments", []),
+                    )
+                )
+            return prompts
+
+        @self.server.get_prompt()
+        async def handle_get_prompt(
+            name: str, arguments: dict[str, Any] | None = None
+        ) -> types.GetPromptResult:
+            """Handle prompt requests."""
+            if name == "budget_health_analysis":
+                args = arguments or {}
+                result = await handle_budget_health_analysis(
+                    self.adapter.registry.envelope_service,
+                    self.adapter.registry.transaction_service,
+                    args,
+                )
+                return types.GetPromptResult(
+                    description="Budget health analysis results",
+                    messages=[
+                        types.PromptMessage(
+                            role="user",
+                            content=types.TextContent(
+                                type="text",
+                                text=f"Budget Analysis Results:\n{result}",
+                            ),
+                        )
+                    ],
+                )
+            else:
+                raise ValueError(f"Unknown prompt: {name}")
 
     async def run(
         self,

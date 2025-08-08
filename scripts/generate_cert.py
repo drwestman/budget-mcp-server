@@ -15,7 +15,7 @@ from pathlib import Path
 def get_system_hostname() -> str:
     """
     Get the system hostname, falling back to localhost if detection fails.
-    
+
     Returns:
         str: System hostname or 'localhost' as fallback
     """
@@ -164,7 +164,8 @@ def main() -> None:
         help="Certificate validity period in days (default: 365)",
     )
     parser.add_argument(
-        "--hostname", help="Hostname to include in certificate (default: auto-detect system hostname)"
+        "--hostname",
+        help="Hostname to include in certificate (default: auto-detect system hostname)",
     )
 
     args = parser.parse_args()

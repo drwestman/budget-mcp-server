@@ -75,6 +75,7 @@ class ToolRegistry:
             "get_cloud_status",
             "sync_to_cloud",
             "sync_from_cloud",
+            "get_server_version",
         ]
 
         for tool_name in utility_tools:

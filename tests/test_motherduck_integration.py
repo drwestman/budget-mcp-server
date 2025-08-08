@@ -105,7 +105,9 @@ class TestDatabaseConnectionModes:
 
     def test_init_local_mode(self) -> None:
         """Test Database initialization in local mode."""
-        db = Database(db_path=":memory:", mode=DatabaseMode.LOCAL, motherduck_config=None)
+        db = Database(
+            db_path=":memory:", mode=DatabaseMode.LOCAL, motherduck_config=None
+        )
         assert db.mode == DatabaseMode.LOCAL
         assert db.is_cloud_connected is False
         assert db.connection_info["primary"] == "local"
@@ -314,7 +316,10 @@ class TestDatabaseCloudOperations:
     @patch("app.models.database.Database.get_all_envelopes")
     @patch("app.models.database.Database.get_all_transactions")
     def test_sync_to_cloud_success(
-        self, mock_get_transactions: Mock, mock_get_envelopes: Mock, mock_duckdb_connect: Mock
+        self,
+        mock_get_transactions: Mock,
+        mock_get_envelopes: Mock,
+        mock_duckdb_connect: Mock,
     ) -> None:
         """Test successful sync_to_cloud operation."""
         # Setup mocks
