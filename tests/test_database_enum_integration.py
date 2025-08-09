@@ -1,4 +1,5 @@
 """Integration tests for Database class with DatabaseMode enum."""
+
 from unittest.mock import MagicMock, patch
 
 import pytest

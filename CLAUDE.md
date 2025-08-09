@@ -10,3 +10,5 @@
 # Docker
 - Use `docker compose` (not `docker-compose`)
 
+
+- Keep track of the code coverage of the unit tests and make sure unit tests increase the code coverage.

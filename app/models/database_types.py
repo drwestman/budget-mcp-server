@@ -4,6 +4,7 @@ This module provides type-safe database mode definitions following the
 Single Responsibility Principle (SRP) by focusing solely on database
 type definitions and validation.
 """
+
 from enum import Enum
 
 

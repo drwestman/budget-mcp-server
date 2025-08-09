@@ -34,7 +34,8 @@ def generate_self_signed_cert(
     Args:
         cert_dir (str): Directory to store certificate files
         days (int): Certificate validity period in days
-        hostname (str): Hostname to include in certificate (auto-detects system hostname if None)
+        hostname (str): Hostname to include in certificate
+            (auto-detects system hostname if None)
     """
     # Create certificates directory
     cert_path = Path(cert_dir)
@@ -165,7 +166,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--hostname",
-        help="Hostname to include in certificate (default: auto-detect system hostname)",
+        help="Hostname to include in certificate (default: auto-detect hostname)",
     )
 
     args = parser.parse_args()

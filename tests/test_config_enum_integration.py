@@ -1,4 +1,5 @@
 """Integration tests for Config class with DatabaseMode enum."""
+
 import os
 from unittest.mock import patch
 

@@ -742,9 +742,9 @@ class Database:
             self.connection_info.get("fallback")
             and self.connection_info.get("requested_mode") == "cloud"
         ):
-            status[
-                "warning"
-            ] = "Requested cloud mode but fell back to local-only connection"
+            status["warning"] = (
+                "Requested cloud mode but fell back to local-only connection"
+            )
 
         return status
 

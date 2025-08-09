@@ -40,9 +40,9 @@ def get_version_info() -> dict[str, Any]:
             "version": version,
             "name": metadata["Name"] if "Name" in metadata else "budget-mcp-server",
             "description": metadata["Summary"] if "Summary" in metadata else "",
-            "python_requires": metadata["Requires-Python"]
-            if "Requires-Python" in metadata
-            else "",
+            "python_requires": (
+                metadata["Requires-Python"] if "Requires-Python" in metadata else ""
+            ),
         }
     except importlib.metadata.PackageNotFoundError:
         # Fallback for development/testing
