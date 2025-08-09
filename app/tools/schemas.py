@@ -259,6 +259,11 @@ UTILITY_TOOLS_SCHEMAS: dict[str, dict[str, Any]] = {
         "description": "Synchronize data from MotherDuck cloud to local database.",
         "inputSchema": {"type": "object", "properties": {}, "required": []},
     },
+    "get_server_version": {
+        "name": "get_server_version",
+        "description": "Get server version and build information.",
+        "inputSchema": {"type": "object", "properties": {}, "required": []},
+    },
 }
 
 # Combined schemas for easy access
@@ -291,6 +296,52 @@ def get_utility_tool_schemas() -> dict[str, dict[str, Any]]:
     return UTILITY_TOOLS_SCHEMAS
 
 
+# Prompt schemas
+PROMPT_SCHEMAS: dict[str, dict[str, Any]] = {
+    "budget_health_analysis": {
+        "name": "budget_health_analysis",
+        "description": "Analyze budget health and provide financial insights",
+        "arguments": [
+            {
+                "name": "analysis_period",
+                "description": "Time period for analysis",
+                "schema": {
+                    "type": "string",
+                    "enum": ["last_30_days", "last_90_days", "ytd", "all_time"],
+                    "default": "last_30_days",
+                },
+            },
+            {
+                "name": "focus_area",
+                "description": "Specific area to focus analysis on",
+                "schema": {
+                    "type": "string",
+                    "enum": [
+                        "overspending",
+                        "underutilized",
+                        "trends",
+                        "recommendations",
+                    ],
+                    "default": "recommendations",
+                },
+            },
+        ],
+    }
+}
+
+
 def get_all_tool_schemas() -> dict[str, dict[str, Any]]:
     """Get all tool schemas."""
     return ALL_TOOL_SCHEMAS
+
+
+def get_prompt_schemas() -> dict[str, dict[str, Any]]:
+    """Get all prompt schemas."""
+    return PROMPT_SCHEMAS
+
+
+def get_prompt_schema(prompt_name: str) -> dict[str, Any]:
+    """Get schema for a specific prompt."""
+    if prompt_name not in PROMPT_SCHEMAS:
+        raise ValueError(f"Unknown prompt: {prompt_name}")
+    return PROMPT_SCHEMAS[prompt_name]

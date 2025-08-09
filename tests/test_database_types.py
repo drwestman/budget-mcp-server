@@ -1,4 +1,5 @@
 import pytest
+
 from app.models.database_types import DatabaseMode
 
 
@@ -8,7 +9,7 @@ class TestDatabaseMode:
     def test_enum_values(self) -> None:
         """Test that enum has correct string values."""
         assert DatabaseMode.LOCAL.value == "local"
-        assert DatabaseMode.CLOUD.value == "cloud"  
+        assert DatabaseMode.CLOUD.value == "cloud"
         assert DatabaseMode.HYBRID.value == "hybrid"
 
     def test_enum_string_behavior(self) -> None:
@@ -34,7 +35,7 @@ class TestDatabaseMode:
         """Test from_string method with invalid value raises ValueError."""
         with pytest.raises(ValueError, match="Invalid database mode 'invalid'"):
             DatabaseMode.from_string("invalid")
-        
+
         with pytest.raises(ValueError, match="Invalid database mode ''"):
             DatabaseMode.from_string("")
 
@@ -68,7 +69,7 @@ class TestDatabaseMode:
     def test_enum_membership(self) -> None:
         """Test membership operations."""
         valid_modes = [DatabaseMode.LOCAL, DatabaseMode.CLOUD, DatabaseMode.HYBRID]
-        
+
         assert DatabaseMode.LOCAL in valid_modes
         assert DatabaseMode.CLOUD in valid_modes
         assert DatabaseMode.HYBRID in valid_modes

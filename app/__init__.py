@@ -4,5 +4,9 @@
 
 # Import the standard MCP server factory for stdio transport
 from app.mcp_server import create_mcp_server
+from app.utils.version import get_version
 
-__all__ = ["create_mcp_server"]
+# Package version - dynamically read from pyproject.toml
+__version__ = get_version()
+
+__all__ = ["create_mcp_server", "__version__"]

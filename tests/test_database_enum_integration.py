@@ -1,4 +1,5 @@
 """Integration tests for Database class with DatabaseMode enum."""
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -77,7 +78,7 @@ class TestDatabaseEnumIntegration:
         db_cloud = Database(
             db_path="test_db",
             mode=DatabaseMode.LOCAL,  # Start with local to avoid connection
-            motherduck_config=motherduck_config
+            motherduck_config=motherduck_config,
         )
         # Manually change mode for testing connection string generation
         db_cloud.mode = DatabaseMode.CLOUD

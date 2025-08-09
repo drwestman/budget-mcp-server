@@ -15,7 +15,7 @@ from pathlib import Path
 def get_system_hostname() -> str:
     """
     Get the system hostname, falling back to localhost if detection fails.
-    
+
     Returns:
         str: System hostname or 'localhost' as fallback
     """
@@ -34,7 +34,8 @@ def generate_self_signed_cert(
     Args:
         cert_dir (str): Directory to store certificate files
         days (int): Certificate validity period in days
-        hostname (str): Hostname to include in certificate (auto-detects system hostname if None)
+        hostname (str): Hostname to include in certificate
+            (auto-detects system hostname if None)
     """
     # Create certificates directory
     cert_path = Path(cert_dir)
@@ -164,7 +165,8 @@ def main() -> None:
         help="Certificate validity period in days (default: 365)",
     )
     parser.add_argument(
-        "--hostname", help="Hostname to include in certificate (default: auto-detect system hostname)"
+        "--hostname",
+        help="Hostname to include in certificate (default: auto-detect hostname)",
     )
 
     args = parser.parse_args()

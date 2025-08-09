@@ -14,6 +14,7 @@ from app.config import config
 from app.models.database import Database
 from app.services.envelope_service import EnvelopeService
 from app.services.transaction_service import TransactionService
+from app.tools.handlers import handle_budget_health_analysis
 from app.tools.registry import (
     ToolRegistry,
     create_tool_registry,
@@ -106,13 +107,13 @@ def _register_fastmcp_tools(mcp: FastMCP, registry: ToolRegistry) -> None:
     @mcp.tool()
     async def update_envelope(
         envelope_id: int,
-        category: str = None,
-        budgeted_amount: float = None,
-        starting_balance: float = None,
-        description: str = None,
+        category: str | None = None,
+        budgeted_amount: float | None = None,
+        starting_balance: float | None = None,
+        description: str | None = None,
     ) -> str:
         """Update an existing envelope's properties."""
-        args = {"envelope_id": envelope_id}
+        args: dict[str, Any] = {"envelope_id": envelope_id}
         if category is not None:
             args["category"] = category
         if budgeted_amount is not None:
@@ -146,15 +147,16 @@ def _register_fastmcp_tools(mcp: FastMCP, registry: ToolRegistry) -> None:
         envelope_id: int,
         amount: float,
         description: str,
-        type: str,
-        date: str = None,
+        type: str,  # noqa: A002
+        date: str | None = None,
     ) -> str:
         """Create a new transaction."""
-        args = {
+        transaction_type = type  # Avoid shadowing built-in
+        args: dict[str, Any] = {
             "envelope_id": envelope_id,
             "amount": amount,
             "description": description,
-            "type": type,
+            "type": transaction_type,
         }
         if date is not None:
             args["date"] = date
@@ -166,7 +168,7 @@ def _register_fastmcp_tools(mcp: FastMCP, registry: ToolRegistry) -> None:
         )
 
     @mcp.tool()
-    async def list_transactions(envelope_id: int = None) -> str:
+    async def list_transactions(envelope_id: int | None = None) -> str:
         """Get transactions, optionally filtered by envelope."""
         args = {}
         if envelope_id is not None:
@@ -193,22 +195,23 @@ def _register_fastmcp_tools(mcp: FastMCP, registry: ToolRegistry) -> None:
     @mcp.tool()
     async def update_transaction(
         transaction_id: int,
-        envelope_id: int = None,
-        amount: float = None,
-        description: str = None,
-        type: str = None,
-        date: str = None,
+        envelope_id: int | None = None,
+        amount: float | None = None,
+        description: str | None = None,
+        type: str | None = None,  # noqa: A002
+        date: str | None = None,
     ) -> str:
         """Update an existing transaction's properties."""
-        args = {"transaction_id": transaction_id}
+        transaction_type = type  # Avoid shadowing built-in
+        args: dict[str, Any] = {"transaction_id": transaction_id}
         if envelope_id is not None:
             args["envelope_id"] = envelope_id
         if amount is not None:
             args["amount"] = amount
         if description is not None:
             args["description"] = description
-        if type is not None:
-            args["type"] = type
+        if transaction_type is not None:
+            args["type"] = transaction_type
         if date is not None:
             args["date"] = date
         result = await registry.call_tool("update_transaction", args)
@@ -283,6 +286,40 @@ def _register_fastmcp_tools(mcp: FastMCP, registry: ToolRegistry) -> None:
             else str(result)
         )
 
+    @mcp.tool()
+    async def get_server_version() -> str:
+        """Get server version and build information."""
+        result = await registry.call_tool("get_server_version", {})
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
+
+
+def _register_fastmcp_prompts(mcp: FastMCP, registry: ToolRegistry) -> None:
+    """Register prompts with FastMCP."""
+
+    @mcp.prompt()
+    async def budget_health_analysis(
+        analysis_period: str = "last_30_days",
+        focus_area: str = "recommendations",
+    ) -> str:
+        """Analyze budget health and provide financial insights."""
+        result = await handle_budget_health_analysis(
+            registry.envelope_service,
+            registry.transaction_service,
+            {
+                "analysis_period": analysis_period,
+                "focus_area": focus_area,
+            },
+        )
+        return (
+            json.dumps(result, indent=2)
+            if isinstance(result, dict | list)
+            else str(result)
+        )
+
 
 def create_fastmcp_server(
     config_name: str | None = None,
@@ -335,24 +372,27 @@ def create_fastmcp_server(
     tool_registry = create_tool_registry(envelope_service, transaction_service)
 
     # Create FastMCP instance
-    mcp = FastMCP("budget-envelope-server")
+    mcp: FastMCP = FastMCP("budget-envelope-server")
 
     # Add service attributes for compatibility with tests and external access
-    mcp.envelope_service = envelope_service
-    mcp.transaction_service = transaction_service
-    mcp.db = db
+    mcp.envelope_service = envelope_service  # type: ignore[attr-defined]
+    mcp.transaction_service = transaction_service  # type: ignore[attr-defined]
+    mcp.db = db  # type: ignore[attr-defined]
 
     # Register tools manually since FastMCP doesn't support **kwargs
     _register_fastmcp_tools(mcp, tool_registry)
 
+    # Register prompts
+    _register_fastmcp_prompts(mcp, tool_registry)
+
     # Add authentication middleware if enabled
     if enable_auth and hasattr(app_config, "BEARER_TOKEN") and app_config.BEARER_TOKEN:
-        mcp.http_app = _create_authenticated_http_app(
+        mcp.http_app = _create_authenticated_http_app(  # type: ignore[assignment]
             mcp.http_app, app_config.BEARER_TOKEN
         )
 
     # Add MCP initialization check middleware if enabled
     if enable_init_check:
-        mcp.http_app = _create_initialization_checked_http_app(mcp.http_app)
+        mcp.http_app = _create_initialization_checked_http_app(mcp.http_app)  # type: ignore[assignment]
 
     return mcp

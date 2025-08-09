@@ -5,11 +5,12 @@ This module contains the business logic for all tools in a unified format.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from app.services.envelope_service import EnvelopeService
 from app.services.transaction_service import TransactionService
+from app.utils.version import get_version_info
 
 logger = logging.getLogger(__name__)
 
@@ -316,3 +317,204 @@ async def handle_sync_from_cloud(
         return format_error(str(e))
     except Exception as e:
         return format_internal_error(f"An unexpected error occurred: {str(e)}")
+
+
+async def handle_get_server_version(
+    envelope_service: EnvelopeService, arguments: dict[str, Any]  # noqa: ARG001
+) -> HandlerResponse:
+    """
+    Handle get_server_version tool call.
+
+    Note: envelope_service parameter is unused but required by tool registry pattern.
+    """
+    try:
+        version_info = get_version_info()
+        return format_success(version_info)
+    except Exception as e:
+        return format_internal_error(f"Version retrieval error: {str(e)}")
+
+
+# Prompt handlers
+async def handle_budget_health_analysis(
+    envelope_service: EnvelopeService,
+    transaction_service: TransactionService,
+    arguments: dict[str, Any],
+) -> HandlerResponse:
+    """Handle budget health analysis prompt."""
+    try:
+        analysis_period = arguments.get("analysis_period", "last_30_days")
+        focus_area = arguments.get("focus_area", "recommendations")
+
+        return _generate_budget_analysis(
+            envelope_service, transaction_service, analysis_period, focus_area
+        )
+    except Exception as e:
+        return format_internal_error(f"Analysis error: {str(e)}")
+
+
+def _generate_budget_analysis(
+    envelope_service: EnvelopeService,
+    transaction_service: TransactionService,
+    period: str,
+    focus: str,
+) -> dict[str, Any]:
+    """Generate comprehensive budget health analysis."""
+    envelopes = envelope_service.get_all_envelopes()
+    transactions = transaction_service.get_all_transactions()
+
+    envelope_health = _analyze_envelope_health(envelopes)
+    spending_analysis = _analyze_spending_patterns(transactions, period)
+    recommendations = _generate_recommendations(envelope_health, spending_analysis)
+
+    return {
+        "analysis_period": period,
+        "focus_area": focus,
+        "envelope_health": envelope_health,
+        "spending_analysis": spending_analysis,
+        "recommendations": recommendations,
+        "summary": _create_summary(envelope_health, spending_analysis),
+    }
+
+
+def _analyze_envelope_health(envelopes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Analyze health status of each envelope."""
+    health_analysis = []
+
+    for envelope in envelopes:
+        current_balance = envelope.get("current_balance", 0)
+        budgeted_amount = envelope.get("budgeted_amount", 0)
+        starting_balance = envelope.get("starting_balance", 0)
+
+        spent_amount = starting_balance - current_balance
+        budget_utilization = (
+            (spent_amount / budgeted_amount) if budgeted_amount > 0 else 0
+        )
+
+        status = _determine_envelope_status(current_balance, budget_utilization)
+
+        health_analysis.append(
+            {
+                "category": envelope.get("category"),
+                "current_balance": current_balance,
+                "budgeted_amount": budgeted_amount,
+                "spent_amount": spent_amount,
+                "budget_utilization": round(budget_utilization * 100, 1),
+                "status": status,
+            }
+        )
+
+    return health_analysis
+
+
+def _determine_envelope_status(balance: float, utilization: float) -> str:
+    """Determine envelope status based on balance and utilization."""
+    if balance < 0:
+        return "overspent"
+    elif utilization > 0.9:
+        return "nearly_depleted"
+    elif utilization < 0.1:
+        return "underutilized"
+    else:
+        return "healthy"
+
+
+def _get_date_range_for_period(period: str) -> datetime | None:
+    """Calculate start date for analysis period."""
+    today = datetime.now()
+
+    if period == "last_30_days":
+        return today - timedelta(days=30)
+    elif period == "last_90_days":
+        return today - timedelta(days=90)
+    elif period == "ytd":
+        return datetime(today.year, 1, 1)
+    elif period == "all_time":
+        return None
+    else:
+        return today - timedelta(days=30)  # Default fallback
+
+
+def _filter_transactions_by_period(
+    transactions: list[dict[str, Any]], period: str
+) -> list[dict[str, Any]]:
+    """Filter transactions based on analysis period."""
+    start_date = _get_date_range_for_period(period)
+
+    if start_date is None:  # all_time
+        return transactions
+
+    filtered_transactions = []
+    for transaction in transactions:
+        try:
+            transaction_date = datetime.strptime(transaction["date"], "%Y-%m-%d")
+            if transaction_date >= start_date:
+                filtered_transactions.append(transaction)
+        except (ValueError, KeyError):
+            # Skip transactions with invalid or missing dates
+            continue
+
+    return filtered_transactions
+
+
+def _analyze_spending_patterns(
+    transactions: list[dict[str, Any]], period: str
+) -> dict[str, Any]:
+    """Analyze spending patterns from transaction data."""
+    # Filter transactions based on the specified period
+    filtered_transactions = _filter_transactions_by_period(transactions, period)
+
+    total_expenses = sum(
+        abs(t["amount"]) for t in filtered_transactions if t["type"] == "expense"
+    )
+    total_income = sum(
+        t["amount"] for t in filtered_transactions if t["type"] == "income"
+    )
+
+    return {
+        "total_expenses": total_expenses,
+        "total_income": total_income,
+        "net_flow": total_income - total_expenses,
+        "transaction_count": len(filtered_transactions),
+        "period_applied": period,
+    }
+
+
+def _generate_recommendations(
+    envelope_health: list[dict[str, Any]], spending_analysis: dict[str, Any]
+) -> list[str]:
+    """Generate actionable budget recommendations."""
+    recommendations = []
+
+    # Check for overspent envelopes
+    overspent = [env for env in envelope_health if env["status"] == "overspent"]
+    if overspent:
+        categories = ", ".join(env["category"] for env in overspent)
+        recommendations.append(f"Address overspending in: {categories}")
+
+    # Check for underutilized envelopes
+    underutilized = [env for env in envelope_health if env["status"] == "underutilized"]
+    if underutilized:
+        categories = ", ".join(env["category"] for env in underutilized[:3])
+        recommendations.append(f"Consider reallocating funds from: {categories}")
+
+    # Check overall budget health
+    if spending_analysis["net_flow"] < 0:
+        recommendations.append("Consider reducing expenses or increasing income")
+
+    return recommendations
+
+
+def _create_summary(
+    envelope_health: list[dict[str, Any]], spending_analysis: dict[str, Any]
+) -> dict[str, Any]:
+    """Create executive summary of budget health."""
+    total_envelopes = len(envelope_health)
+    healthy_count = len([env for env in envelope_health if env["status"] == "healthy"])
+    health_score = (healthy_count / total_envelopes * 100) if total_envelopes > 0 else 0
+
+    return {
+        "overall_health_score": round(health_score, 1),
+        "total_envelopes": total_envelopes,
+        "healthy_envelopes": healthy_count,
+        "net_cash_flow": spending_analysis["net_flow"],
+    }

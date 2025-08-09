@@ -81,6 +81,7 @@ class TestToolRegistry:
             "get_cloud_status",
             "sync_to_cloud",
             "sync_from_cloud",
+            "get_server_version",
         ]
 
         for tool in envelope_tools + transaction_tools + utility_tools:
@@ -203,6 +204,7 @@ class TestToolRegistry:
             "get_cloud_status",
             "sync_to_cloud",
             "sync_from_cloud",
+            "get_server_version",
         ]
 
         mock_schemas = {}
